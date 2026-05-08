@@ -88,3 +88,4 @@ Thumbs.db
 
 # Crash logs
 crash-report*.txt
+.agent/
