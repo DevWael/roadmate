@@ -25,3 +25,9 @@
 ## Deferred from: code review of story 1-4 (2026-05-09)
 
 - **`DrivingState.Driving.tripId` is untyped `String`** — Consider a value class wrapper (`TripId`) to prevent mixing with other string fields. Deferred to trip tracking epic (Epic 2) where the ID type will be formally established.
+
+## Deferred from: code review of story 1-5 (2026-05-09)
+
+- **stop/start race on isRequesting AtomicBoolean** — `stopLocationUpdates()` resets `isRequesting` unconditionally without awaiting removal confirmation; concurrent start/stop can leave stale state. Acceptable for V1 single-caller pattern.
+- **State managers expose unrestricted public updateState()** — Any class can mutate driving/BT/location state without transition validation. Acceptable for V1 where only the service writes state; should add visibility constraints when multi-writer scenarios arise.
+- **Notification.Builder instead of NotificationCompat.Builder** — `Notification.Builder` works on API 28+ but `NotificationCompat` is the Android recommendation for forward compatibility. Low risk for head unit's fixed OS.
