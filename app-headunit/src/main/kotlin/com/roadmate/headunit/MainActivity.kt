@@ -17,10 +17,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.roadmate.core.model.UiState
 import com.roadmate.core.ui.theme.RoadMateTheme
+import com.roadmate.headunit.ui.WelcomeContent
 import com.roadmate.headunit.ui.parked.DashboardShell
 import com.roadmate.headunit.ui.parked.VehicleSetupContent
 import com.roadmate.headunit.ui.parked.VehicleSwitcherDialog
 import com.roadmate.headunit.viewmodel.VehicleSetupViewModel
+import com.roadmate.headunit.viewmodel.WelcomeViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -45,19 +47,30 @@ fun RoadMateMainScreen() {
     val mainViewModel: MainViewModel = hiltViewModel()
     val activeVehicleId by mainViewModel.activeVehicleId.collectAsStateWithLifecycle()
     val vehicles by mainViewModel.vehicles.collectAsStateWithLifecycle()
+    val isReady by mainViewModel.isReady.collectAsStateWithLifecycle()
     var showSetup by remember { mutableStateOf(false) }
     var showSwitcher by remember { mutableStateOf(false) }
 
     val currentVehicle = vehicles.find { it.id == activeVehicleId }
     val hasVehicles = vehicles.isNotEmpty()
 
-    LaunchedEffect(hasVehicles, activeVehicleId) {
-        if (!hasVehicles && activeVehicleId == null) {
-            showSetup = true
-        }
-    }
+    val hasActiveVehicle = activeVehicleId != null && currentVehicle != null
+
+    if (!isReady) return
 
     when {
+        !hasVehicles && !hasActiveVehicle && !showSetup -> {
+            val welcomeViewModel: WelcomeViewModel = hiltViewModel()
+            val welcomeState by welcomeViewModel.uiState.collectAsStateWithLifecycle()
+
+            WelcomeContent(
+                uiState = welcomeState,
+                onNameChange = welcomeViewModel::updateName,
+                onOdometerChange = welcomeViewModel::updateOdometer,
+                onStartTracking = welcomeViewModel::startTracking,
+                onRetry = welcomeViewModel::resetToForm,
+            )
+        }
         showSetup -> {
             val setupViewModel: VehicleSetupViewModel = hiltViewModel()
             val uiState by setupViewModel.uiState.collectAsStateWithLifecycle()
