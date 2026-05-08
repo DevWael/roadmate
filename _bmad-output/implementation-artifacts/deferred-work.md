@@ -21,3 +21,7 @@
 - **OBDProvider uses blocking `fun` not `suspend fun`** — Real ELM327 calls will need async I/O. Interface needs a breaking change in V2. V1 is GPS-only with mock returning null.
 - **Repositories have no error logging** — Write failures caught by `runCatching` but not logged. Pre-existing pattern established in Story 1-2. Should be addressed when logging infrastructure is set up.
 - **`SyncPush.payload` is an untyped `String`** — No schema validation or entity-type envelope. Will be addressed when the sync service is implemented (Epic 5).
+
+## Deferred from: code review of story 1-4 (2026-05-09)
+
+- **`DrivingState.Driving.tripId` is untyped `String`** — Consider a value class wrapper (`TripId`) to prevent mixing with other string fields. Deferred to trip tracking epic (Epic 2) where the ID type will be formally established.
