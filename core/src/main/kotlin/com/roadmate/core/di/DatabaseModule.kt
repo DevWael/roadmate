@@ -4,7 +4,10 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.roadmate.core.database.RoadMateDatabase
+import com.roadmate.core.database.dao.DocumentDao
+import com.roadmate.core.database.dao.FuelDao
 import com.roadmate.core.database.dao.MaintenanceDao
+import com.roadmate.core.database.dao.TripDao
 import com.roadmate.core.database.dao.VehicleDao
 import dagger.Module
 import dagger.Provides
@@ -37,4 +40,16 @@ object DatabaseModule {
     @Provides
     fun provideMaintenanceDao(db: RoadMateDatabase): MaintenanceDao =
         db.maintenanceDao()
+
+    @Provides
+    fun provideTripDao(db: RoadMateDatabase): TripDao =
+        db.tripDao()
+
+    @Provides
+    fun provideFuelDao(db: RoadMateDatabase): FuelDao =
+        db.fuelDao()
+
+    @Provides
+    fun provideDocumentDao(db: RoadMateDatabase): DocumentDao =
+        db.documentDao()
 }

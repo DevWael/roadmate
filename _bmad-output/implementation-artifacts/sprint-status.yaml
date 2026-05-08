@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-08T22:57:00+03:00"
-last_updated: "2026-05-09T00:16:00+03:00"
+last_updated: "2026-05-09T00:42:00+03:00"
 project: roadmate
 project_key: NOKEY
 tracking_system: file-system
@@ -46,7 +46,7 @@ development_status:
   epic-1: in-progress
   1-1-project-scaffold-and-build-system: done
   1-2-room-database-and-entity-layer: done
-  1-3-repository-and-service-layer: ready-for-dev
+  1-3-repository-and-service-layer: done
   1-4-design-system-and-theme: ready-for-dev
   1-5-roadmate-service-and-boot-receiver: ready-for-dev
   1-6-vehicle-setup-flow-ui: ready-for-dev

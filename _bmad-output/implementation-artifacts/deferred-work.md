@@ -14,3 +14,10 @@
 - **No cascade delete integration test** — FK cascade on `MaintenanceSchedule → MaintenanceRecord` is configured but untested. Requires Robolectric or instrumented test with real Room instance.
 - **Both schedule intervals can be null simultaneously** — `MaintenanceSchedule.intervalKm` and `intervalMonths` can both be null, creating a schedule with no trigger interval. Domain validation needed at creation time.
 - **No domain validation on numeric fields** — `Vehicle.year`, `engineSize`, `odometerKm` accept any value including negatives and zero. Input validation needed in UI/service layer.
+
+## Deferred from: code review of story 1-3 (2026-05-09)
+
+- **No UNIQUE constraint for multiple ACTIVE trips per vehicle** — `getActiveTrip()` returns LIMIT 1 but nothing prevents inserting multiple ACTIVE trips. Domain invariant to be enforced at the service layer (Story 2-2: Trip Detection State Machine).
+- **OBDProvider uses blocking `fun` not `suspend fun`** — Real ELM327 calls will need async I/O. Interface needs a breaking change in V2. V1 is GPS-only with mock returning null.
+- **Repositories have no error logging** — Write failures caught by `runCatching` but not logged. Pre-existing pattern established in Story 1-2. Should be addressed when logging infrastructure is set up.
+- **`SyncPush.payload` is an untyped `String`** — No schema validation or entity-type envelope. Will be addressed when the sync service is implemented (Epic 5).

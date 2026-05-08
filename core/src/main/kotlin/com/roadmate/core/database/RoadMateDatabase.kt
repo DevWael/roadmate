@@ -4,10 +4,17 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.roadmate.core.database.converter.Converters
+import com.roadmate.core.database.dao.DocumentDao
+import com.roadmate.core.database.dao.FuelDao
 import com.roadmate.core.database.dao.MaintenanceDao
+import com.roadmate.core.database.dao.TripDao
 import com.roadmate.core.database.dao.VehicleDao
+import com.roadmate.core.database.entity.Document
+import com.roadmate.core.database.entity.FuelLog
 import com.roadmate.core.database.entity.MaintenanceRecord
 import com.roadmate.core.database.entity.MaintenanceSchedule
+import com.roadmate.core.database.entity.Trip
+import com.roadmate.core.database.entity.TripPoint
 import com.roadmate.core.database.entity.Vehicle
 
 /**
@@ -21,6 +28,10 @@ import com.roadmate.core.database.entity.Vehicle
         Vehicle::class,
         MaintenanceSchedule::class,
         MaintenanceRecord::class,
+        Trip::class,
+        TripPoint::class,
+        FuelLog::class,
+        Document::class,
     ],
     version = 1,
     exportSchema = true,
@@ -29,4 +40,7 @@ import com.roadmate.core.database.entity.Vehicle
 abstract class RoadMateDatabase : RoomDatabase() {
     abstract fun vehicleDao(): VehicleDao
     abstract fun maintenanceDao(): MaintenanceDao
+    abstract fun tripDao(): TripDao
+    abstract fun fuelDao(): FuelDao
+    abstract fun documentDao(): DocumentDao
 }
