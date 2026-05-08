@@ -3,13 +3,24 @@ package com.roadmate.headunit
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.roadmate.core.model.UiState
+import com.roadmate.core.ui.theme.RoadMateTheme
+import com.roadmate.headunit.ui.parked.DashboardShell
+import com.roadmate.headunit.ui.parked.VehicleSetupContent
+import com.roadmate.headunit.ui.parked.VehicleSwitcherDialog
+import com.roadmate.headunit.viewmodel.VehicleSetupViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -17,20 +28,79 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.background
-            ) {
-                Box(
+            RoadMateTheme(isHeadUnit = true) {
+                Surface(
                     modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                    color = MaterialTheme.colorScheme.background,
                 ) {
-                    Text(
-                        text = "RoadMate Head Unit",
-                        style = MaterialTheme.typography.headlineLarge
-                    )
+                    RoadMateMainScreen()
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun RoadMateMainScreen() {
+    val mainViewModel: MainViewModel = hiltViewModel()
+    val activeVehicleId by mainViewModel.activeVehicleId.collectAsStateWithLifecycle()
+    val vehicles by mainViewModel.vehicles.collectAsStateWithLifecycle()
+    var showSetup by remember { mutableStateOf(false) }
+    var showSwitcher by remember { mutableStateOf(false) }
+
+    val currentVehicle = vehicles.find { it.id == activeVehicleId }
+    val hasVehicles = vehicles.isNotEmpty()
+
+    LaunchedEffect(hasVehicles, activeVehicleId) {
+        if (!hasVehicles && activeVehicleId == null) {
+            showSetup = true
+        }
+    }
+
+    when {
+        showSetup -> {
+            val setupViewModel: VehicleSetupViewModel = hiltViewModel()
+            val uiState by setupViewModel.uiState.collectAsStateWithLifecycle()
+
+            VehicleSetupContent(
+                uiState = uiState,
+                onNameChange = setupViewModel::updateName,
+                onMakeChange = setupViewModel::updateMake,
+                onModelChange = setupViewModel::updateModel,
+                onYearChange = setupViewModel::updateYear,
+                onEngineTypeChange = setupViewModel::updateEngineType,
+                onEngineSizeChange = setupViewModel::updateEngineSize,
+                onFuelTypeChange = setupViewModel::updateFuelType,
+                onPlateNumberChange = setupViewModel::updatePlateNumber,
+                onOdometerKmChange = setupViewModel::updateOdometerKm,
+                onOdometerUnitChange = setupViewModel::updateOdometerUnit,
+                onCityConsumptionChange = setupViewModel::updateCityConsumption,
+                onHighwayConsumptionChange = setupViewModel::updateHighwayConsumption,
+                onTemplateSelected = setupViewModel::selectTemplate,
+                onSave = setupViewModel::save,
+            )
+
+            if (uiState is UiState.Success && activeVehicleId != null && currentVehicle != null) {
+                showSetup = false
+            }
+        }
+        showSwitcher -> {
+            VehicleSwitcherDialog(
+                vehicles = vehicles,
+                activeVehicleId = activeVehicleId,
+                onVehicleSelected = { mainViewModel.switchVehicle(it) },
+                onAddVehicle = {
+                    showSwitcher = false
+                    showSetup = true
+                },
+                onDismiss = { showSwitcher = false },
+            )
+        }
+        else -> {
+            DashboardShell(
+                vehicle = currentVehicle,
+                onSwitchVehicle = { showSwitcher = true },
+            )
         }
     }
 }

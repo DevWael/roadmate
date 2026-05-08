@@ -31,3 +31,8 @@
 - **stop/start race on isRequesting AtomicBoolean** — `stopLocationUpdates()` resets `isRequesting` unconditionally without awaiting removal confirmation; concurrent start/stop can leave stale state. Acceptable for V1 single-caller pattern.
 - **State managers expose unrestricted public updateState()** — Any class can mutate driving/BT/location state without transition validation. Acceptable for V1 where only the service writes state; should add visibility constraints when multi-writer scenarios arise.
 - **Notification.Builder instead of NotificationCompat.Builder** — `Notification.Builder` works on API 28+ but `NotificationCompat` is the Android recommendation for forward compatibility. Low risk for head unit's fixed OS.
+
+## Deferred from: code review of story 1-6 (2026-05-09)
+
+- **VehicleSwitcherDialog is not modal (no Dialog wrapper)** — Uses a `Card` composable instead of `AlertDialog`/`Dialog`. No scrim, no modal behavior, no accessibility semantics. Address when the full navigation graph is implemented (Story 6-3).
+- **No @Preview composables in any UI file** — Zero preview functions across 812 lines of Compose UI. Impossible to visually verify in Android Studio without running the app. General practice gap to address when UI polish is prioritized.
