@@ -1,0 +1,109 @@
+# generated: 2026-05-08T22:57:00+03:00
+# last_updated: 2026-05-08T22:57:00+03:00
+# project: roadmate
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: "{project-root}/_bmad-output/implementation-artifacts"
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: "2026-05-08T22:57:00+03:00"
+last_updated: "2026-05-09T00:13:00+03:00"
+project: roadmate
+project_key: NOKEY
+tracking_system: file-system
+story_location: "{project-root}/_bmad-output/implementation-artifacts"
+
+development_status:
+  # Epic 1: Project Foundation & Vehicle Management
+  epic-1: in-progress
+  1-1-project-scaffold-and-build-system: ready-for-dev
+  1-2-room-database-and-entity-layer: ready-for-dev
+  1-3-repository-and-service-layer: ready-for-dev
+  1-4-design-system-and-theme: ready-for-dev
+  1-5-roadmate-service-and-boot-receiver: ready-for-dev
+  1-6-vehicle-setup-flow-ui: ready-for-dev
+  1-7-vehicle-setup-flow-maintenance-template: ready-for-dev
+  epic-1-retrospective: optional
+
+  # Epic 2: Trip Tracking & Data Integrity
+  epic-2: in-progress
+  2-1-gps-tracker-and-location-pipeline: ready-for-dev
+  2-2-trip-detection-state-machine: ready-for-dev
+  2-3-trip-recording-and-trippoint-persistence: ready-for-dev
+  2-4-crash-recovery-journal-and-power-loss-protection: ready-for-dev
+  2-5-odometer-auto-update-and-trip-list: ready-for-dev
+  2-6-drivinghud-and-contextawarelayout: ready-for-dev
+  2-7-gps-gap-handling-and-edge-cases: ready-for-dev
+  epic-2-retrospective: optional
+
+  # Epic 3: Maintenance & Document Management with Notifications
+  epic-3: in-progress
+  3-1-maintenance-progress-calculation-and-gaugearc-component: ready-for-dev
+  3-2-maintenance-completion-flow: ready-for-dev
+  3-3-custom-maintenance-items-and-interval-configuration: ready-for-dev
+  3-4-maintenance-prediction-and-alerting-logic: ready-for-dev
+  3-5-document-management-and-expiry-tracking: ready-for-dev
+  3-6-notification-system-workmanager: ready-for-dev
+  3-7-maintenance-service-history-view: ready-for-dev
+  epic-3-retrospective: optional
+
+  # Epic 4: Bluetooth Sync
+  epic-4: in-progress
+  4-1-rfcomm-server-and-client-connection: ready-for-dev
+  4-2-delta-sync-protocol: ready-for-dev
+  4-3-conflict-resolution-and-idempotency: ready-for-dev
+  4-4-event-and-periodic-sync-triggers: ready-for-dev
+  4-5-sync-ui-statuschip-and-shimmer-refresh: ready-for-dev
+  epic-4-retrospective: optional
+
+  # Epic 5: Phone Companion App
+  epic-5: in-progress
+  5-1-phone-app-shell-and-navigation-graph: ready-for-dev
+  5-2-vehiclehub-hero-card-and-dashboard-layout: ready-for-dev
+  5-3-phone-trip-list-and-trip-detail: ready-for-dev
+  5-4-fuel-log-entry-calculation-and-trends: ready-for-dev
+  5-5-phone-maintenance-and-document-views: ready-for-dev
+  5-6-vehicle-switcher-and-multi-vehicle-support: ready-for-dev
+  epic-5-retrospective: optional
+
+  # Epic 6: Head Unit Dashboard Polish
+  epic-6: in-progress
+  6-1-parkeddashboard-three-panel-layout: ready-for-dev
+  6-2-adaptivedashboard-and-split-screen-support: ready-for-dev
+  6-3-head-unit-vehicle-switcher-and-dpad-navigation: ready-for-dev
+  epic-6-retrospective: optional
+
+  # Epic 7: Statistics, Export & Growth Features
+  epic-7: in-progress
+  7-1-driving-summaries-and-statistics: ready-for-dev
+  7-2-data-export-csv-pdf: ready-for-dev
+  7-3-trip-route-sharing: ready-for-dev
+  epic-7-retrospective: optional
