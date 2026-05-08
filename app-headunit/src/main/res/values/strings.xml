@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">RoadMate</string>
+    <string name="welcome_title">Welcome to RoadMate</string>
+    <string name="welcome_vehicle_name">Vehicle Name</string>
+    <string name="welcome_odometer_label">Odometer (km)</string>
+    <string name="welcome_start_tracking">Start Tracking</string>
+    <string name="welcome_try_again">Try Again</string>
+    <string name="welcome_error_required">Required</string>
+    <string name="welcome_error_invalid">Invalid</string>
 </resources>
+

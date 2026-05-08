@@ -36,3 +36,8 @@
 
 - **VehicleSwitcherDialog is not modal (no Dialog wrapper)** — Uses a `Card` composable instead of `AlertDialog`/`Dialog`. No scrim, no modal behavior, no accessibility semantics. Address when the full navigation graph is implemented (Story 6-3).
 - **No @Preview composables in any UI file** — Zero preview functions across 812 lines of Compose UI. Impossible to visually verify in Android Studio without running the app. General practice gap to address when UI polish is prioritized.
+
+## Deferred from: code review of story 1-7 (2026-05-09)
+
+- **GPS acquisition not triggered by service start** — `RoadMateService` creates a foreground notification but does not invoke `LocationStateManager` to begin GPS tracking. This is by design for story 1-7 scope; GPS pipeline will be implemented in Story 2-1 (GPS Tracker and Location Pipeline).
+
