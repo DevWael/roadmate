@@ -35,9 +35,9 @@ class FusedLocationProvider @Inject constructor(
         }
     }
 
-    override fun requestLocationUpdates() {
+    override fun requestLocationUpdates(intervalMs: Long) {
         if (!isRequesting.compareAndSet(false, true)) return
-        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L)
+        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMs)
             .setMinUpdateDistanceMeters(0f)
             .build()
         try {

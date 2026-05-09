@@ -8,6 +8,9 @@ plugins {
 
 android {
     namespace = "com.roadmate.core"
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {

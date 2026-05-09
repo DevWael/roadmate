@@ -14,7 +14,7 @@ class LocationProviderTest {
     fun anonymousImplementationSatisfiesInterface() {
         val provider: LocationProvider = object : LocationProvider {
             override val locationUpdates: Flow<android.location.Location> = emptyFlow()
-            override fun requestLocationUpdates() {}
+            override fun requestLocationUpdates(intervalMs: Long) {}
             override fun stopLocationUpdates() {}
         }
         assertNotNull(provider)

@@ -41,3 +41,10 @@
 
 - **GPS acquisition not triggered by service start** — `RoadMateService` creates a foreground notification but does not invoke `LocationStateManager` to begin GPS tracking. This is by design for story 1-7 scope; GPS pipeline will be implemented in Story 2-1 (GPS Tracker and Location Pipeline).
 
+## Deferred from: code review of story 2-1 (2026-05-09)
+
+- **AC #3 transition latency <100ms not testable** — `collectLatest` on `StateFlow` is architecturally correct but the <100ms constraint is not verifiable in a JVM unit test. Requires instrumented test with real scheduling.
+- **AC #6 24-hour leak-free not provable** — `callbackFlow`+`awaitClose` pattern is idiomatic but no stress/long-running test exists. Requires instrumented endurance test.
+- **`FusedLocationProvider.HandlerThread` never quit** — `HandlerThread("FusedLocationThread")` is started in field initializer with no corresponding `quitSafely()`. Singleton lifetime makes this acceptable for foreground service but technically a resource leak.
+- **`DrivingStateManager.updateState` is unrestricted public API** — Any component can mutate driving state without transition validation. Pre-existing pattern from Story 1-5; should constrain when multi-writer scenarios arise.
+

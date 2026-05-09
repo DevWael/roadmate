@@ -41,7 +41,7 @@ class PlatformLocationProvider @Inject constructor(
         override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
     }
 
-    override fun requestLocationUpdates() {
+    override fun requestLocationUpdates(intervalMs: Long) {
         if (!isRequesting.compareAndSet(false, true)) return
         if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
             Timber.e("GPS provider not available or disabled")
@@ -51,7 +51,7 @@ class PlatformLocationProvider @Inject constructor(
         try {
             locationManager.requestLocationUpdates(
                 LocationManager.GPS_PROVIDER,
-                1000L,
+                intervalMs,
                 0f,
                 listener,
             )

@@ -1,6 +1,6 @@
 # Story 2.1: GPS Tracker & Location Pipeline
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -24,23 +24,23 @@ so that the trip detection system and trip recorder have reliable location data 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: GpsTracker (AC: #1, #2, #3)
-  - [ ] Create `core/location/GpsTracker.kt` — collects from LocationProvider, publishes `SharedFlow<LocationUpdate>`
-  - [ ] Create `LocationUpdate` data class (lat, lng, speedKmh, altitude, accuracy, timestamp, isLowAccuracy)
-  - [ ] Implement dynamic interval switching based on `DrivingStateManager.drivingState`
+- [x] Task 1: GpsTracker (AC: #1, #2, #3)
+  - [x] Create `core/location/GpsTracker.kt` — collects from LocationProvider, publishes `SharedFlow<LocationUpdate>`
+  - [x] Create `LocationUpdate` data class (lat, lng, speedKmh, altitude, accuracy, timestamp, isLowAccuracy)
+  - [x] Implement dynamic interval switching based on `DrivingStateManager.drivingState`
 
-- [ ] Task 2: Interval strategy (AC: #2, #3)
-  - [ ] Idle: cancel location requests or use passive provider
-  - [ ] Driving: request 3s interval with `PRIORITY_HIGH_ACCURACY`
-  - [ ] Transition latency <100ms via `collectLatest` on DrivingState
+- [x] Task 2: Interval strategy (AC: #2, #3)
+  - [x] Idle: cancel location requests or use passive provider
+  - [x] Driving: request 3s interval with `PRIORITY_HIGH_ACCURACY`
+  - [x] Transition latency <100ms via `collectLatest` on DrivingState
 
-- [ ] Task 3: Accuracy tagging (AC: #4)
-  - [ ] Tag locations with accuracy >50m as `isLowAccuracy = true`
-  - [ ] Pass all updates downstream regardless of accuracy
+- [x] Task 3: Accuracy tagging (AC: #4)
+  - [x] Tag locations with accuracy >50m as `isLowAccuracy = true`
+  - [x] Pass all updates downstream regardless of accuracy
 
-- [ ] Task 4: Lifecycle management (AC: #6)
-  - [ ] Properly remove location callbacks on service stop
-  - [ ] Use `callbackFlow` with `awaitClose { removeUpdates() }` pattern
+- [x] Task 4: Lifecycle management (AC: #6)
+  - [x] Properly remove location callbacks on service stop
+  - [x] Use `callbackFlow` with `awaitClose { removeUpdates() }` pattern
 
 ## Dev Notes
 
@@ -70,6 +70,47 @@ class GpsTracker @Inject constructor(
 ## Dev Agent Record
 
 ### Agent Model Used
+zai/glm-5.1
+
 ### Debug Log References
+- Fixed `LocationProvider` interface to accept configurable `intervalMs` parameter (default 3000L)
+- Fixed inner class naming conflict (`DrivingState` inner test class shadowing the import)
+- Fixed `android.location.Location` not mocked in unit tests — enabled `returnDefaultValues` and used anonymous subclass with overridden getters
+- Fixed `UncompletedCoroutinesError` in tests — GpsTracker uses separate `CoroutineScope` (injectable via secondary constructor) instead of TestScope
+- Fixed `TurbineTimeoutCancellationException` — SharedFlow has replay=0 so collector must be started before emissions
+
 ### Completion Notes List
+- Created `LocationUpdate` data class with lat, lng, speedKmh, altitude, accuracy, timestamp, isLowAccuracy fields
+- Created `GpsTracker` singleton that observes `DrivingStateManager.drivingState` via `collectLatest` for dynamic interval switching
+- Driving state → requests 3s interval location updates from provider, converts `Location` to `LocationUpdate` (including speed m/s→km/h conversion), emits to `SharedFlow<LocationUpdate>`
+- Idle state → cancels tracking flow which triggers `callbackFlow.awaitClose` to stop provider updates
+- Accuracy tagging: `isLowAccuracy = accuracy > 50f`, all updates passed downstream regardless
+- Lifecycle: `callbackFlow` with `awaitClose { stopUpdates() }` pattern ensures cleanup; `destroy()` cancels scope + stops provider
+- Updated `LocationProvider` interface with `intervalMs` parameter; both `FusedLocationProvider` and `PlatformLocationProvider` now accept configurable intervals (AC #5 fallback transparency)
+- Added `returnDefaultValues = true` to core module test options for `android.location.Location` test compatibility
+- All 17 new tests pass; full regression suite passes (0 failures)
+- GpsTracker uses dual constructor pattern: `@Inject` constructor for Hilt (creates `Dispatchers.Default` scope), primary constructor for testing (injectable scope)
+
 ### File List
+- `core/src/main/kotlin/com/roadmate/core/location/LocationUpdate.kt` (new)
+- `core/src/main/kotlin/com/roadmate/core/location/GpsTracker.kt` (new)
+- `core/src/main/kotlin/com/roadmate/core/location/LocationProvider.kt` (modified — added `intervalMs` parameter)
+- `core/src/main/kotlin/com/roadmate/core/location/FusedLocationProvider.kt` (modified — uses configurable `intervalMs`)
+- `core/src/main/kotlin/com/roadmate/core/location/PlatformLocationProvider.kt` (modified — uses configurable `intervalMs`)
+- `core/src/test/kotlin/com/roadmate/core/location/GpsTrackerTest.kt` (new)
+- `core/src/test/kotlin/com/roadmate/core/location/LocationUpdateTest.kt` (new)
+- `core/src/test/kotlin/com/roadmate/core/location/LocationProviderTest.kt` (modified — updated for new interface)
+- `core/build.gradle.kts` (modified — added `testOptions.unitTests.isReturnDefaultValues = true`)
+
+### Review Findings
+
+- [x] [Review][Decision] `Stopping`/`GapCheck` states now keep GPS active — only `Idle` stops tracking [`GpsTracker.kt:44-47`] ✅ fixed
+- [x] [Review][Patch] `collectLatest` race eliminated — replaced `callbackFlow` with `try/finally` direct collect; `collectLatest` guarantees sequential cancellation [`GpsTracker.kt:48-55`] ✅ fixed
+- [x] [Review][Patch] `destroy()` double-stop eliminated — now only cancels scope; `finally` block handles cleanup [`GpsTracker.kt:64-66`] ✅ fixed
+- [x] [Review][Patch] Speed validated — NaN and negative values clamped to 0 before `* 3.6f` conversion [`GpsTracker.kt:70`] ✅ fixed
+- [x] [Review][Patch] `SharedFlow` replay aligned — tracker now uses `replay=1` matching provider pattern [`GpsTracker.kt:31`] ✅ fixed
+- [x] [Review][Patch] Redundant `callbackFlow`+`launch` removed — direct `collect` from provider flow [`GpsTracker.kt:50-53`] ✅ fixed
+- [x] [Review][Defer] AC #3 transition latency <100ms — `collectLatest` is architecturally correct but no test verifies the <100ms constraint — deferred, not testable in unit suite
+- [x] [Review][Defer] AC #6 24-hour leak-free — `callbackFlow`+`awaitClose` pattern is correct idiom but no stress/long-running tests — deferred, requires instrumented test
+- [x] [Review][Defer] `FusedLocationProvider.HandlerThread` never quit — singleton lifetime, acceptable for foreground service process — deferred, pre-existing
+- [x] [Review][Defer] `DrivingStateManager.updateState` is unrestricted public API — deferred, pre-existing
