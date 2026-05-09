@@ -48,3 +48,9 @@
 - **`FusedLocationProvider.HandlerThread` never quit** — `HandlerThread("FusedLocationThread")` is started in field initializer with no corresponding `quitSafely()`. Singleton lifetime makes this acceptable for foreground service but technically a resource leak.
 - **`DrivingStateManager.updateState` is unrestricted public API** — Any component can mutate driving state without transition validation. Pre-existing pattern from Story 1-5; should constrain when multi-writer scenarios arise.
 
+## Deferred from: code review of story 2-2 (2026-05-09)
+
+- **`resumeDriving` resets distance/duration to zero** — `DrivingState.Driving(tripId, 0.0, 0L)` on resume resets accumulated metrics. Not tracked by TripDetector yet; will be addressed when trip recording writes distance/duration (Story 2-3).
+- **`GapCheck` state silently ignored** — `process()` has an empty handler for `DrivingState.GapCheck` with no logging. GapCheck handling is defined in Story 2-7 (GPS Gap Handling).
+- **3-consecutive-readings doesn't enforce 9s timing** — AC says "9s" assuming 3s GPS interval, but code counts readings regardless of time gap. Timing enforcement is the responsibility of GPS interval configuration, not the state machine.
+
