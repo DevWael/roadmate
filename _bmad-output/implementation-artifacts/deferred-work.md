@@ -66,3 +66,9 @@
 - **AC #4 unverified (5-second recovery)** — No performance test or timing assertion for the 5-second recovery bound. Needs instrumented test with real Room and DataStore.
 - **AC #1 file size unenforced** — No runtime guard that journal DataStore stays under 1KB. Low risk with current 7-key schema but could drift.
 - **PowerReceiver shutdownScope per-instance** — Android creates new BroadcastReceiver instance per broadcast; scope created per-instance but never reused. GC risk on long-running coroutines. Pre-existing BroadcastReceiver pattern.
+
+## Deferred from: code review of story 2-5 (2026-05-11)
+
+- **Hardcoded UI strings not in string resources** — TripListSection.kt and DashboardShell.kt use inline strings ("Distance", "Duration", "Avg Speed", "No trips recorded yet.", etc.) instead of `stringResource()`. i18n cross-cutting concern to address in a dedicated localization pass.
+- **No contentDescription on emoji car icon in empty state** — TripListSection.kt empty state uses `🚗` emoji Text with no accessibility semantics. a11y cross-cutting concern.
+- **VehicleRepository.addToOdometer uses System.currentTimeMillis()** — Not using injected `Clock` abstraction. Pre-existing pattern in VehicleRepository; all repo writes use system clock directly.

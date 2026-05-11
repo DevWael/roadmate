@@ -2,7 +2,6 @@ package com.roadmate.core.util
 
 import com.roadmate.core.database.entity.Trip
 import com.roadmate.core.database.entity.TripStatus
-import com.roadmate.core.database.entity.Vehicle
 import com.roadmate.core.repository.TripRepository
 import com.roadmate.core.repository.VehicleRepository
 import kotlinx.coroutines.flow.firstOrNull
@@ -48,22 +47,16 @@ class CrashRecoveryManager @Inject constructor(
                 return
             }
 
-        updateVehicleOdometer(entry.vehicleId, entry.odometerKm)
+        updateVehicleOdometer(entry.vehicleId, entry.distanceKm)
 
         journal.clear()
         Timber.i("CrashRecovery: journal cleared after recovery")
     }
 
-    private suspend fun updateVehicleOdometer(vehicleId: String, odometerKm: Double) {
-        val vehicle = vehicleRepository.getVehicle(vehicleId).firstOrNull()
-        if (vehicle == null) {
-            Timber.w("CrashRecovery: vehicle $vehicleId not found, cannot update odometer")
-            return
-        }
-
-        val updated = vehicle.copy(odometerKm = odometerKm)
-        vehicleRepository.saveVehicle(updated)
-            .onSuccess { Timber.i("CrashRecovery: updated vehicle odometer to $odometerKm km") }
+    private suspend fun updateVehicleOdometer(vehicleId: String, distanceKm: Double) {
+        if (vehicleId.isBlank() || distanceKm <= 0.0 || distanceKm.isNaN() || distanceKm.isInfinite()) return
+        vehicleRepository.addToOdometer(vehicleId, distanceKm)
+            .onSuccess { Timber.i("CrashRecovery: updated vehicle odometer by $distanceKm km") }
             .onFailure { Timber.e(it, "CrashRecovery: failed to update vehicle odometer") }
     }
 }

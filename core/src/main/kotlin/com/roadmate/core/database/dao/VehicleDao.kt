@@ -37,4 +37,7 @@ interface VehicleDao {
 
     @Query("SELECT COUNT(*) FROM vehicles")
     fun getVehicleCount(): Flow<Int>
+
+    @Query("UPDATE vehicles SET odometer_km = odometer_km + :distanceKm, last_modified = :lastModified WHERE id = :vehicleId")
+    suspend fun addToOdometer(vehicleId: String, distanceKm: Double, lastModified: Long)
 }

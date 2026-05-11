@@ -415,6 +415,48 @@ class TripRecorderTest {
             assertEquals(TripStatus.COMPLETED, trip!!.status)
             assertEquals(0, fakeTripDao.tripPoints.values.count { it.tripId == "trip-1" })
         }
+
+        @Test
+        @DisplayName("updates vehicle odometerKm by trip distance on finalization")
+        fun updatesVehicleOdometerOnFinalization() = runTest {
+            setupVehicle()
+            createActiveTrip()
+            createRecorder(testScope = this)
+
+            drivingStateManager.updateState(DrivingState.Driving("trip-1", 0.0, 0L))
+            fakeLocations.emit(locationUpdate(lat = 37.7749, lng = -122.4194, speedKmh = 60f, timestamp = 2000L))
+            fakeLocations.emit(locationUpdate(lat = 37.7849, lng = -122.4194, speedKmh = 60f, timestamp = 3000L))
+
+            fakeClock.setTime(5000L)
+            fakeTripEndEvents.emit(TripEndEvent("trip-1", 5000L))
+
+            val trip = fakeTripDao.trips["trip-1"]!!
+            val vehicle = fakeVehicleDao.vehicles["vehicle-1"]!!
+            assertEquals(85000.0 + trip.distanceKm, vehicle.odometerKm, 0.001,
+                "Vehicle odometer should be incremented by trip distance")
+            assertTrue(vehicle.lastModified > 0L,
+                "Vehicle lastModified should be updated")
+        }
+
+        @Test
+        @DisplayName("updates vehicle odometerKm on graceful shutdown")
+        fun updatesVehicleOdometerOnGracefulShutdown() = runTest {
+            setupVehicle()
+            createActiveTrip()
+            val recorder = createRecorder(testScope = this)
+
+            drivingStateManager.updateState(DrivingState.Driving("trip-1", 0.0, 0L))
+            fakeLocations.emit(locationUpdate(lat = 37.7749, lng = -122.4194, speedKmh = 60f, timestamp = 2000L))
+            fakeLocations.emit(locationUpdate(lat = 37.7849, lng = -122.4194, speedKmh = 60f, timestamp = 3000L))
+
+            fakeClock.setTime(5000L)
+            recorder.gracefulShutdown()
+
+            val trip = fakeTripDao.trips["trip-1"]!!
+            val vehicle = fakeVehicleDao.vehicles["vehicle-1"]!!
+            assertEquals(85000.0 + trip.distanceKm, vehicle.odometerKm, 0.001,
+                "Vehicle odometer should be incremented by trip distance on graceful shutdown")
+        }
     }
 }
 
@@ -524,6 +566,16 @@ private class FakeVehicleDaoForRecorder : VehicleDao {
     override suspend fun deleteById(id: String) {
         if (shouldThrow) throw RuntimeException("Test error")
         vehicles.remove(id)
+        updateFlow()
+    }
+
+    override suspend fun addToOdometer(vehicleId: String, distanceKm: Double, lastModified: Long) {
+        if (shouldThrow) throw RuntimeException("Test error")
+        val vehicle = vehicles[vehicleId] ?: return
+        vehicles[vehicleId] = vehicle.copy(
+            odometerKm = vehicle.odometerKm + distanceKm,
+            lastModified = lastModified,
+        )
         updateFlow()
     }
 }

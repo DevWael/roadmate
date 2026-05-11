@@ -37,4 +37,7 @@ class VehicleRepository @Inject constructor(
 
     suspend fun deleteVehicleById(vehicleId: String): Result<Unit> =
         runCatching { vehicleDao.deleteById(vehicleId) }
+
+    suspend fun addToOdometer(vehicleId: String, distanceKm: Double): Result<Unit> =
+        runCatching { vehicleDao.addToOdometer(vehicleId, distanceKm, System.currentTimeMillis()) }
 }

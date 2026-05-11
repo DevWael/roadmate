@@ -45,13 +45,14 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun RoadMateMainScreen() {
     val mainViewModel: MainViewModel = hiltViewModel()
+    val currentVehicle by mainViewModel.currentVehicle.collectAsStateWithLifecycle()
+    val trips by mainViewModel.trips.collectAsStateWithLifecycle()
     val activeVehicleId by mainViewModel.activeVehicleId.collectAsStateWithLifecycle()
     val vehicles by mainViewModel.vehicles.collectAsStateWithLifecycle()
     val isReady by mainViewModel.isReady.collectAsStateWithLifecycle()
     var showSetup by remember { mutableStateOf(false) }
     var showSwitcher by remember { mutableStateOf(false) }
 
-    val currentVehicle = vehicles.find { it.id == activeVehicleId }
     val hasVehicles = vehicles.isNotEmpty()
 
     val hasActiveVehicle = activeVehicleId != null && currentVehicle != null
@@ -112,6 +113,7 @@ fun RoadMateMainScreen() {
         else -> {
             DashboardShell(
                 vehicle = currentVehicle,
+                trips = trips,
                 onSwitchVehicle = { showSwitcher = true },
             )
         }

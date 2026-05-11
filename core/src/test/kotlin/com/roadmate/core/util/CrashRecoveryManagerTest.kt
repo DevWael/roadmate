@@ -137,8 +137,8 @@ class CrashRecoveryManagerTest {
 
             manager.recover()
 
-            val savedVehicle = fakeVehicleDao.savedVehicle
-            assertEquals(85010.0, savedVehicle!!.odometerKm, 0.001)
+            val updatedVehicle = fakeVehicleDao.vehicle
+            assertEquals(85010.0, updatedVehicle!!.odometerKm, 0.001)
         }
 
         @Test
@@ -354,4 +354,10 @@ private class FakeVehicleDaoForRecovery : VehicleDao {
     }
 
     override fun getVehicleCount(): Flow<Int> = vehicleFlow.map { it.size }
+
+    override suspend fun addToOdometer(vehicleId: String, distanceKm: Double, lastModified: Long) {
+        val v = vehicle ?: return
+        vehicle = v.copy(odometerKm = v.odometerKm + distanceKm, lastModified = lastModified)
+        updateFlow()
+    }
 }

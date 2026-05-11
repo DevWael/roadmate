@@ -337,6 +337,12 @@ private class FakeVehicleDao : VehicleDao {
 
     override fun getVehicleCount(): Flow<Int> =
         flow.map { it.size }
+
+    override suspend fun addToOdometer(vehicleId: String, distanceKm: Double, lastModified: Long) {
+        val vehicle = vehicles[vehicleId] ?: return
+        vehicles[vehicleId] = vehicle.copy(odometerKm = vehicle.odometerKm + distanceKm, lastModified = lastModified)
+        updateFlow()
+    }
 }
 
 private class FakeMaintenanceDao : MaintenanceDao {

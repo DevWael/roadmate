@@ -261,6 +261,8 @@ class TripRecorder(
                     tripRepository.saveTrip(trip)
                 }
                 result.onFailure { Timber.e(it, "TripRecorder: finalization save failed for trip ${event.tripId}") }
+
+                updateVehicleOdometer(trip)
             }
 
             Timber.d("TripRecorder: finalized trip ${event.tripId}, distance=${accumulatedDistanceKm}km")
@@ -316,12 +318,20 @@ class TripRecorder(
                     tripRepository.saveTrip(trip)
                         .onFailure { Timber.e(it, "TripRecorder: graceful shutdown save failed") }
                 }
+                updateVehicleOdometer(trip)
             }
             journal.clear()
             Timber.i("TripRecorder: graceful shutdown, finalized trip $tripId as COMPLETED")
             currentTripId = null
             lastValidLocation = null
         }
+    }
+
+    private suspend fun updateVehicleOdometer(trip: Trip) {
+        val vehicleId = trip.vehicleId
+        if (vehicleId.isBlank() || trip.distanceKm <= 0.0 || trip.distanceKm.isNaN() || trip.distanceKm.isInfinite()) return
+        vehicleRepository.addToOdometer(vehicleId, trip.distanceKm)
+            .onFailure { Timber.e(it, "TripRecorder: failed to update odometer for vehicle $vehicleId") }
     }
 
     private fun LocationUpdate.toTripPoint(tripId: String) = TripPoint(

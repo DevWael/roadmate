@@ -34,4 +34,6 @@ class PowerReceiver : BroadcastReceiver() {
                     shutdownScope.cancel()
                 }
             }
+        }
+    }
 }

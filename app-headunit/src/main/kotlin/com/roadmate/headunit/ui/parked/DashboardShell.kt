@@ -8,22 +8,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.roadmate.core.database.entity.Trip
 import com.roadmate.core.database.entity.Vehicle
 import com.roadmate.core.ui.theme.RoadMateSpacing
 import java.text.NumberFormat
@@ -34,6 +31,7 @@ private val MinTouchTarget = 76.dp
 @Composable
 fun DashboardShell(
     vehicle: Vehicle?,
+    trips: List<Trip>,
     onSwitchVehicle: () -> Unit,
 ) {
     if (vehicle == null) {
@@ -47,7 +45,6 @@ fun DashboardShell(
         modifier = Modifier
             .fillMaxSize()
             .padding(RoadMateSpacing.xxl),
-        verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -71,6 +68,8 @@ fun DashboardShell(
             }
         }
 
+        Spacer(modifier = Modifier.height(RoadMateSpacing.lg))
+
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -89,6 +88,8 @@ fun DashboardShell(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+
+        Spacer(modifier = Modifier.height(RoadMateSpacing.lg))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -109,6 +110,27 @@ fun DashboardShell(
                 modifier = Modifier.weight(1f),
             )
         }
+
+        Spacer(modifier = Modifier.height(RoadMateSpacing.xl))
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+
+        Spacer(modifier = Modifier.height(RoadMateSpacing.lg))
+
+        Text(
+            text = "Trip History",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+
+        Spacer(modifier = Modifier.height(RoadMateSpacing.md))
+
+        TripListSection(
+            trips = trips,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+        )
     }
 }
 

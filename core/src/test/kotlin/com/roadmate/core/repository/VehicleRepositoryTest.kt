@@ -108,6 +108,29 @@ class VehicleRepositoryTest {
     }
 
     @Test
+    fun `addToOdometer adds distance and updates lastModified`() = runTest {
+        val vehicle = createTestVehicle(id = "v-1", odometerKm = 85000.0).copy(lastModified = 0L)
+        fakeDao.vehicles["v-1"] = vehicle
+        fakeDao.updateFlow()
+
+        val result = repository.addToOdometer("v-1", 12.5)
+
+        assertTrue(result.isSuccess)
+        val updated = fakeDao.vehicles["v-1"]
+        assertNotNull(updated)
+        assertEquals(85012.5, updated!!.odometerKm, 0.001)
+        assertTrue(updated.lastModified > vehicle.lastModified)
+    }
+
+    @Test
+    fun `addToOdometer returns failure when dao throws`() = runTest {
+        fakeDao.shouldThrow = true
+        val result = repository.addToOdometer("v-1", 10.0)
+
+        assertTrue(result.isFailure)
+    }
+
+    @Test
     fun `saveVehicles delegates batch to dao`() = runTest {
         val vehicles = listOf(
             createTestVehicle(id = "v-1"),
@@ -119,7 +142,7 @@ class VehicleRepositoryTest {
         assertEquals(2, fakeDao.vehicles.size)
     }
 
-    private fun createTestVehicle(id: String = "test-id"): Vehicle = Vehicle(
+    private fun createTestVehicle(id: String = "test-id", odometerKm: Double = 85000.0): Vehicle = Vehicle(
         id = id,
         name = "Test Car",
         make = "Mitsubishi",
@@ -129,7 +152,7 @@ class VehicleRepositoryTest {
         engineSize = 1.6,
         fuelType = FuelType.GASOLINE,
         plateNumber = "TEST-001",
-        odometerKm = 85000.0,
+        odometerKm = odometerKm,
         odometerUnit = OdometerUnit.KM,
         cityConsumption = 9.5,
         highwayConsumption = 6.8,
@@ -181,4 +204,14 @@ private class FakeVehicleDao : VehicleDao {
 
     override fun getVehicleCount(): Flow<Int> =
         flow.map { it.size }
+
+    override suspend fun addToOdometer(vehicleId: String, distanceKm: Double, lastModified: Long) {
+        if (shouldThrow) throw RuntimeException("Test error")
+        val vehicle = vehicles[vehicleId] ?: return
+        vehicles[vehicleId] = vehicle.copy(
+            odometerKm = vehicle.odometerKm + distanceKm,
+            lastModified = lastModified,
+        )
+        updateFlow()
+    }
 }
