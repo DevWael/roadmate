@@ -7,6 +7,7 @@ import com.roadmate.core.model.DrivingState
 import com.roadmate.core.repository.TripRepository
 import com.roadmate.core.repository.VehicleRepository
 import com.roadmate.core.state.DrivingStateManager
+import com.roadmate.core.state.GapRecoveredEvent
 import com.roadmate.core.state.TripDetector
 import com.roadmate.core.state.TripEndEvent
 import com.roadmate.core.util.Clock
@@ -36,12 +37,14 @@ class TripRecorder(
     private val locationUpdates: SharedFlow<LocationUpdate>,
     private val drivingStateFlow: StateFlow<DrivingState>,
     private val tripEndEventFlow: SharedFlow<TripEndEvent>,
+    private val gapRecoveredEventFlow: SharedFlow<GapRecoveredEvent>,
     private val tripRepository: TripRepository,
     private val vehicleRepository: VehicleRepository,
     private val journal: CrashRecoveryJournal,
     private val clock: Clock,
     private val scope: CoroutineScope,
     private val ioDispatcher: CoroutineDispatcher,
+    private val accuracyRampMaxMeters: Float = 50f,
 ) {
     @Inject constructor(
         gpsTracker: GpsTracker,
@@ -54,6 +57,7 @@ class TripRecorder(
         locationUpdates = gpsTracker.locations,
         drivingStateFlow = drivingStateManager.drivingState,
         tripEndEventFlow = tripDetector.tripEndEvents,
+        gapRecoveredEventFlow = tripDetector.gapRecoveredEvents,
         tripRepository = tripRepository,
         vehicleRepository = vehicleRepository,
         journal = journal,
@@ -75,6 +79,9 @@ class TripRecorder(
     @Volatile private var lastValidLocation: LocationUpdate? = null
     @Volatile private var tripLoaded = false
 
+    @Volatile private var isGapMode = false
+    @Volatile private var postGapRecovery = false
+
     private var flushJob: Job? = null
     private var journalJob: Job? = null
 
@@ -91,15 +98,26 @@ class TripRecorder(
         scope.launch {
             drivingStateFlow.collect { state ->
                 when (state) {
-                    is DrivingState.Driving -> onTripActive(state)
+                    is DrivingState.Driving -> {
+                        if (currentTripId == null) {
+                            onTripActive(state)
+                        } else if (isGapMode) {
+                            onGapRecovered()
+                        }
+                    }
                     is DrivingState.Idle -> onTripIdle()
-                    else -> {}
+                    is DrivingState.GapCheck -> onGapEntered()
+                    is DrivingState.Stopping -> { }
                 }
             }
         }
 
         scope.launch {
             tripEndEventFlow.collect { event -> finalizeTrip(event) }
+        }
+
+        scope.launch {
+            gapRecoveredEventFlow.collect { event -> onGapRecoveredEvent(event) }
         }
     }
 
@@ -110,6 +128,8 @@ class TripRecorder(
         maxSpeedKmh = 0.0
         lastValidLocation = null
         tripLoaded = false
+        isGapMode = false
+        postGapRecovery = false
         startFlushTimer()
         Timber.d("TripRecorder: started recording trip ${state.tripId}")
     }
@@ -121,6 +141,29 @@ class TripRecorder(
         journalJob = null
     }
 
+    private fun onGapEntered() {
+        isGapMode = true
+        postGapRecovery = false
+        Timber.d("TripRecorder: entered gap mode — distance accumulation paused")
+    }
+
+    private fun onGapRecovered() {
+        isGapMode = false
+        postGapRecovery = true
+        Timber.d("TripRecorder: gap recovered — distance will be applied when event arrives")
+    }
+
+    private fun onGapRecoveredEvent(event: GapRecoveredEvent) {
+        if (event.tripId != currentTripId) return
+        if (event.isPlausible && event.gapDistanceKm > 0.0) {
+            accumulatedDistanceKm += event.gapDistanceKm
+            Timber.d("TripRecorder: added plausible gap distance ${event.gapDistanceKm}km")
+        } else if (!event.isPlausible && event.gapDistanceKm > 0.0) {
+            lastValidLocation = null
+            Timber.w("TripRecorder: discarded implausible gap distance ${event.gapDistanceKm}km (teleport)")
+        }
+    }
+
     private suspend fun onLocationUpdate(update: LocationUpdate) {
         mutex.withLock {
             val tripId = currentTripId ?: return
@@ -128,7 +171,16 @@ class TripRecorder(
             val speed = update.speedKmh.toDouble()
             if (speed > maxSpeedKmh) maxSpeedKmh = speed
 
+            if (isGapMode) {
+                buffer.add(update.toTripPoint(tripId, isGapBoundary = true))
+                return
+            }
+
             if (!update.isLowAccuracy && lastValidLocation != null) {
+                if (postGapRecovery && update.accuracy >= accuracyRampMaxMeters) {
+                    buffer.add(update.toTripPoint(tripId))
+                    return
+                }
                 accumulatedDistanceKm += HaversineCalculator.haversineDistanceKm(
                     lastValidLocation!!.lat, lastValidLocation!!.lng,
                     update.lat, update.lng,
@@ -136,6 +188,9 @@ class TripRecorder(
             }
 
             if (!update.isLowAccuracy) {
+                if (postGapRecovery && update.accuracy <= accuracyRampMaxMeters) {
+                    postGapRecovery = false
+                }
                 lastValidLocation = update
             }
 
@@ -224,7 +279,7 @@ class TripRecorder(
         )
     }
 
-    private fun buildFinalizedTrip(endTime: Long): Trip {
+    private fun buildFinalizedTrip(endTime: Long, status: TripStatus): Trip {
         val durationMs = maxOf(0L, endTime - tripStartTime)
         val avgSpeedKmh = if (durationMs > 0) accumulatedDistanceKm / (durationMs / 3_600_000.0) else 0.0
         val estimatedFuelL = accumulatedDistanceKm * (cityConsumption / 100.0)
@@ -242,7 +297,7 @@ class TripRecorder(
             estimatedFuelL = estimatedFuelL,
             startOdometerKm = startOdometerKm,
             endOdometerKm = endOdometerKm,
-            status = TripStatus.COMPLETED,
+            status = status,
             lastModified = clock.now(),
         )
     }
@@ -253,7 +308,7 @@ class TripRecorder(
             ensureTripLoaded()
             val points = drainBuffer()
 
-            val trip = buildFinalizedTrip(event.endTime)
+            val trip = buildFinalizedTrip(event.endTime, event.status)
             withContext(ioDispatcher) {
                 val result = if (points.isNotEmpty()) {
                     tripRepository.flushTripPointsAndTrip(points, trip)
@@ -262,12 +317,16 @@ class TripRecorder(
                 }
                 result.onFailure { Timber.e(it, "TripRecorder: finalization save failed for trip ${event.tripId}") }
 
-                updateVehicleOdometer(trip)
+                if (event.status == TripStatus.COMPLETED) {
+                    updateVehicleOdometer(trip)
+                }
             }
 
-            Timber.d("TripRecorder: finalized trip ${event.tripId}, distance=${accumulatedDistanceKm}km")
+            Timber.d("TripRecorder: finalized trip ${event.tripId}, distance=${accumulatedDistanceKm}km, status=${event.status}")
             currentTripId = null
             lastValidLocation = null
+            isGapMode = false
+            postGapRecovery = false
         }
     }
 
@@ -300,7 +359,6 @@ class TripRecorder(
             }
             val points = drainBuffer()
             val now = clock.now()
-            // AC #6: update journal before finalizing
             journal.write(
                 tripId = tripId,
                 vehicleId = currentVehicleId ?: "",
@@ -309,7 +367,7 @@ class TripRecorder(
                 odometerKm = startOdometerKm + accumulatedDistanceKm,
                 lastFlushTimestamp = now,
             )
-            val trip = buildFinalizedTrip(now)
+            val trip = buildFinalizedTrip(now, TripStatus.COMPLETED)
             withContext(ioDispatcher) {
                 if (points.isNotEmpty()) {
                     tripRepository.flushTripPointsAndTrip(points, trip)
@@ -324,6 +382,8 @@ class TripRecorder(
             Timber.i("TripRecorder: graceful shutdown, finalized trip $tripId as COMPLETED")
             currentTripId = null
             lastValidLocation = null
+            isGapMode = false
+            postGapRecovery = false
         }
     }
 
@@ -334,7 +394,7 @@ class TripRecorder(
             .onFailure { Timber.e(it, "TripRecorder: failed to update odometer for vehicle $vehicleId") }
     }
 
-    private fun LocationUpdate.toTripPoint(tripId: String) = TripPoint(
+    private fun LocationUpdate.toTripPoint(tripId: String, isGapBoundary: Boolean = false) = TripPoint(
         tripId = tripId,
         latitude = lat,
         longitude = lng,
@@ -342,5 +402,6 @@ class TripRecorder(
         altitude = altitude,
         accuracy = accuracy,
         timestamp = timestamp,
+        isGapBoundary = isGapBoundary,
     )
 }

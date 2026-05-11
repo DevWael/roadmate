@@ -3,6 +3,8 @@ package com.roadmate.core.database
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.roadmate.core.database.converter.Converters
 import com.roadmate.core.database.dao.DocumentDao
 import com.roadmate.core.database.dao.FuelDao
@@ -33,7 +35,7 @@ import com.roadmate.core.database.entity.Vehicle
         FuelLog::class,
         Document::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -43,4 +45,12 @@ abstract class RoadMateDatabase : RoomDatabase() {
     abstract fun tripDao(): TripDao
     abstract fun fuelDao(): FuelDao
     abstract fun documentDao(): DocumentDao
+
+    companion object {
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE trip_points ADD COLUMN is_gap_boundary INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+    }
 }

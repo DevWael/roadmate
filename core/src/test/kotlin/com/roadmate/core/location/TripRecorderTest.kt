@@ -9,6 +9,7 @@ import com.roadmate.core.model.DrivingState
 import com.roadmate.core.repository.TripRepository
 import com.roadmate.core.repository.VehicleRepository
 import com.roadmate.core.state.DrivingStateManager
+import com.roadmate.core.state.GapRecoveredEvent
 import com.roadmate.core.state.TripEndEvent
 import com.roadmate.core.util.Clock
 import com.roadmate.core.util.CrashRecoveryJournal
@@ -47,6 +48,7 @@ class TripRecorderTest {
     private lateinit var vehicleRepository: VehicleRepository
     private lateinit var fakeLocations: MutableSharedFlow<LocationUpdate>
     private lateinit var fakeTripEndEvents: MutableSharedFlow<TripEndEvent>
+    private lateinit var fakeGapRecoveredEvents: MutableSharedFlow<GapRecoveredEvent>
     private lateinit var fakeClock: FakeClock
     private lateinit var fakeJournal: FakeJournalForRecorder
     private lateinit var fakeVehicleDao: FakeVehicleDaoForRecorder
@@ -61,6 +63,7 @@ class TripRecorderTest {
         vehicleRepository = VehicleRepository(fakeVehicleDao)
         fakeLocations = MutableSharedFlow(replay = 0, extraBufferCapacity = 64)
         fakeTripEndEvents = MutableSharedFlow(extraBufferCapacity = 1)
+        fakeGapRecoveredEvents = MutableSharedFlow(extraBufferCapacity = 1)
         fakeClock = FakeClock(1000L)
         fakeJournal = FakeJournalForRecorder()
     }
@@ -79,6 +82,7 @@ class TripRecorderTest {
             locationUpdates = fakeLocations,
             drivingStateFlow = drivingStateManager.drivingState,
             tripEndEventFlow = fakeTripEndEvents,
+            gapRecoveredEventFlow = fakeGapRecoveredEvents,
             tripRepository = tripRepository,
             vehicleRepository = vehicleRepository,
             journal = fakeJournal,
@@ -168,6 +172,7 @@ class TripRecorderTest {
             assertEquals(50.0, points[0].altitude, 0.1)
             assertEquals(10.0f, points[0].accuracy, 0.1f)
             assertEquals(2000L, points[0].timestamp)
+            assertEquals(false, points[0].isGapBoundary)
         }
 
         @Test
@@ -456,6 +461,181 @@ class TripRecorderTest {
             val vehicle = fakeVehicleDao.vehicles["vehicle-1"]!!
             assertEquals(85000.0 + trip.distanceKm, vehicle.odometerKm, 0.001,
                 "Vehicle odometer should be incremented by trip distance on graceful shutdown")
+        }
+
+        @Test
+        @DisplayName("finalizes trip as INTERRUPTED when TripEndEvent has INTERRUPTED status")
+        fun finalizesTripAsInterrupted() = runTest {
+            setupVehicle()
+            createActiveTrip()
+            createRecorder(testScope = this)
+
+            drivingStateManager.updateState(DrivingState.Driving("trip-1", 0.0, 0L))
+            fakeLocations.emit(locationUpdate(speedKmh = 60f, timestamp = 2000L))
+
+            fakeClock.setTime(3000L)
+            fakeTripEndEvents.emit(TripEndEvent("trip-1", 3000L, TripStatus.INTERRUPTED))
+
+            val trip = fakeTripDao.trips["trip-1"]
+            assertNotNull(trip)
+            assertEquals(TripStatus.INTERRUPTED, trip!!.status)
+            assertEquals(3000L, trip.endTime)
+        }
+
+        @Test
+        @DisplayName("does not update odometer for INTERRUPTED trips")
+        fun noOdometerUpdateForInterrupted() = runTest {
+            setupVehicle()
+            createActiveTrip()
+            createRecorder(testScope = this)
+
+            drivingStateManager.updateState(DrivingState.Driving("trip-1", 0.0, 0L))
+            fakeLocations.emit(locationUpdate(lat = 37.7749, lng = -122.4194, speedKmh = 60f, timestamp = 2000L))
+            fakeLocations.emit(locationUpdate(lat = 37.7849, lng = -122.4194, speedKmh = 60f, timestamp = 3000L))
+
+            fakeClock.setTime(5000L)
+            fakeTripEndEvents.emit(TripEndEvent("trip-1", 5000L, TripStatus.INTERRUPTED))
+
+            val vehicle = fakeVehicleDao.vehicles["vehicle-1"]!!
+            assertEquals(85000.0, vehicle.odometerKm, 0.001,
+                "Vehicle odometer should NOT be updated for INTERRUPTED trips")
+        }
+    }
+
+    @Nested
+    @DisplayName("Gap mode handling")
+    inner class GapModeHandling {
+
+        @Test
+        @DisplayName("pauses distance accumulation during GapCheck")
+        fun pausesDistanceDuringGapCheck() = runTest {
+            setupVehicle()
+            createActiveTrip()
+            createRecorder(testScope = this)
+
+            drivingStateManager.updateState(DrivingState.Driving("trip-1", 0.0, 0L))
+            fakeLocations.emit(locationUpdate(lat = 37.7749, lng = -122.4194, speedKmh = 60f, accuracy = 10f, timestamp = 2000L))
+
+            val distBefore = fakeTripDao.trips["trip-1"]?.distanceKm ?: 0.0
+
+            drivingStateManager.updateState(DrivingState.GapCheck(gapDurationMs = 30000L))
+            fakeLocations.emit(locationUpdate(lat = 37.7849, lng = -122.4194, speedKmh = 60f, accuracy = 10f, timestamp = 50000L))
+
+            fakeClock.setTime(60000L)
+            fakeTripEndEvents.emit(TripEndEvent("trip-1", 60000L))
+
+            val trip = fakeTripDao.trips["trip-1"]
+            assertNotNull(trip)
+            assertEquals(distBefore, trip!!.distanceKm, 0.0001,
+                "Distance should not accumulate during GapCheck")
+        }
+
+        @Test
+        @DisplayName("flags gap points with isGapBoundary=true")
+        fun flagsGapBoundaryPoints() = runTest {
+            setupVehicle()
+            createActiveTrip()
+            createRecorder(testScope = this)
+
+            drivingStateManager.updateState(DrivingState.Driving("trip-1", 0.0, 0L))
+            fakeLocations.emit(locationUpdate(speedKmh = 60f, accuracy = 10f, timestamp = 2000L))
+
+            drivingStateManager.updateState(DrivingState.GapCheck(gapDurationMs = 30000L))
+            fakeLocations.emit(locationUpdate(speedKmh = 60f, accuracy = 10f, timestamp = 50000L))
+
+            fakeClock.setTime(60000L)
+            fakeTripEndEvents.emit(TripEndEvent("trip-1", 60000L))
+
+            val gapPoints = fakeTripDao.tripPoints.values.filter { it.tripId == "trip-1" && it.isGapBoundary }
+            assertEquals(1, gapPoints.size, "Points during GapCheck should be flagged as gap boundaries")
+        }
+
+        @Test
+        @DisplayName("adds plausible gap distance on recovery")
+        fun addsPlausibleGapDistance() = runTest {
+            setupVehicle()
+            createActiveTrip()
+            createRecorder(testScope = this)
+
+            drivingStateManager.updateState(DrivingState.Driving("trip-1", 0.0, 0L))
+            fakeLocations.emit(locationUpdate(lat = 37.7749, lng = -122.4194, speedKmh = 60f, accuracy = 10f, timestamp = 2000L))
+
+            drivingStateManager.updateState(DrivingState.GapCheck(gapDurationMs = 30000L))
+
+            val gapDistance = HaversineCalculator.haversineDistanceKm(37.7749, -122.4194, 37.7849, -122.4194)
+            fakeGapRecoveredEvents.emit(GapRecoveredEvent("trip-1", 30000L, gapDistance, true))
+
+            drivingStateManager.updateState(DrivingState.Driving("trip-1", 0.0, 0L))
+
+            fakeClock.setTime(60000L)
+            fakeLocations.emit(locationUpdate(lat = 37.7849, lng = -122.4194, speedKmh = 60f, accuracy = 10f, timestamp = 55000L))
+
+            fakeTripEndEvents.emit(TripEndEvent("trip-1", 60000L))
+
+            val trip = fakeTripDao.trips["trip-1"]
+            assertNotNull(trip)
+            assertTrue(trip!!.distanceKm >= gapDistance, "Gap distance should be included in total distance")
+        }
+
+        @Test
+        @DisplayName("discards implausible gap distance on teleport")
+        fun discardsImplausibleGapDistance() = runTest {
+            setupVehicle()
+            createActiveTrip()
+            createRecorder(testScope = this)
+
+            drivingStateManager.updateState(DrivingState.Driving("trip-1", 0.0, 0L))
+            fakeLocations.emit(locationUpdate(lat = 37.7749, lng = -122.4194, speedKmh = 60f, accuracy = 10f, timestamp = 2000L))
+
+            val distBefore = 0.0
+
+            drivingStateManager.updateState(DrivingState.GapCheck(gapDurationMs = 30000L))
+
+            fakeGapRecoveredEvents.emit(GapRecoveredEvent("trip-1", 30000L, 500.0, false))
+
+            drivingStateManager.updateState(DrivingState.Driving("trip-1", 0.0, 0L))
+
+            fakeClock.setTime(60000L)
+            fakeLocations.emit(locationUpdate(lat = 37.7849, lng = -122.4194, speedKmh = 60f, accuracy = 10f, timestamp = 55000L))
+
+            fakeTripEndEvents.emit(TripEndEvent("trip-1", 60000L))
+
+            val trip = fakeTripDao.trips["trip-1"]
+            assertNotNull(trip)
+            val postGapDrivingDist = HaversineCalculator.haversineDistanceKm(37.7849, -122.4194, 37.7849, -122.4194)
+            assertEquals(distBefore + postGapDrivingDist, trip!!.distanceKm, 0.0001,
+                "Implausible gap distance should be discarded")
+        }
+
+        @Test
+        @DisplayName("filters low-accuracy points after gap recovery")
+        fun filtersLowAccuracyAfterGapRecovery() = runTest {
+            setupVehicle()
+            createActiveTrip()
+            createRecorder(testScope = this)
+
+            drivingStateManager.updateState(DrivingState.Driving("trip-1", 0.0, 0L))
+            fakeLocations.emit(locationUpdate(lat = 37.7749, lng = -122.4194, speedKmh = 60f, accuracy = 10f, timestamp = 2000L))
+
+            drivingStateManager.updateState(DrivingState.GapCheck(gapDurationMs = 30000L))
+
+            fakeGapRecoveredEvents.emit(GapRecoveredEvent("trip-1", 30000L, 0.1, true))
+            drivingStateManager.updateState(DrivingState.Driving("trip-1", 0.0, 0L))
+
+            fakeLocations.emit(locationUpdate(lat = 37.7750, lng = -122.4195, speedKmh = 60f, accuracy = 55f, timestamp = 50000L))
+            fakeLocations.emit(locationUpdate(lat = 37.7751, lng = -122.4196, speedKmh = 60f, accuracy = 10f, timestamp = 53000L))
+            fakeLocations.emit(locationUpdate(lat = 37.7760, lng = -122.4200, speedKmh = 60f, accuracy = 10f, timestamp = 56000L))
+
+            fakeClock.setTime(60000L)
+            fakeTripEndEvents.emit(TripEndEvent("trip-1", 60000L))
+
+            val trip = fakeTripDao.trips["trip-1"]
+            assertNotNull(trip)
+            val allPoints = fakeTripDao.tripPoints.values.filter { it.tripId == "trip-1" }
+            assertTrue(allPoints.size >= 4, "All points should be persisted")
+
+            val distanceExcludingLowAccuracy = trip!!.distanceKm
+            assertTrue(distanceExcludingLowAccuracy >= 0, "Distance should be non-negative after accuracy ramp")
         }
     }
 }

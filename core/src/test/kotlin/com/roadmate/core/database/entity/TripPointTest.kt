@@ -5,10 +5,6 @@ import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-/**
- * Unit tests for [TripPoint] entity.
- * Validates default values, field assignments, and data class contract.
- */
 class TripPointTest {
 
     @Test
@@ -36,6 +32,7 @@ class TripPointTest {
             altitude = 75.0,
             accuracy = 5.0f,
             timestamp = 1000L,
+            isGapBoundary = true,
             lastModified = 2000L,
         )
 
@@ -47,6 +44,7 @@ class TripPointTest {
         assertEquals(75.0, point.altitude)
         assertEquals(5.0f, point.accuracy)
         assertEquals(1000L, point.timestamp)
+        assertTrue(point.isGapBoundary)
         assertEquals(2000L, point.lastModified)
     }
 
@@ -80,12 +78,25 @@ class TripPointTest {
             altitude = 75.0,
             accuracy = 5.0f,
             timestamp = 1000L,
+            isGapBoundary = false,
             lastModified = 1000L,
         )
         val p2 = p1.copy()
 
         assertEquals(p1, p2)
         assertEquals(p1.hashCode(), p2.hashCode())
+    }
+
+    @Test
+    fun `tripPoint isGapBoundary defaults to false`() {
+        val point = createTestTripPoint()
+        assertEquals(false, point.isGapBoundary)
+    }
+
+    @Test
+    fun `tripPoint with isGapBoundary true`() {
+        val point = createTestTripPoint().copy(isGapBoundary = true)
+        assertTrue(point.isGapBoundary)
     }
 
     private fun createTestTripPoint(): TripPoint = TripPoint(

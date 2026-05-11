@@ -72,3 +72,13 @@
 - **Hardcoded UI strings not in string resources** — TripListSection.kt and DashboardShell.kt use inline strings ("Distance", "Duration", "Avg Speed", "No trips recorded yet.", etc.) instead of `stringResource()`. i18n cross-cutting concern to address in a dedicated localization pass.
 - **No contentDescription on emoji car icon in empty state** — TripListSection.kt empty state uses `🚗` emoji Text with no accessibility semantics. a11y cross-cutting concern.
 - **VehicleRepository.addToOdometer uses System.currentTimeMillis()** — Not using injected `Clock` abstraction. Pre-existing pattern in VehicleRepository; all repo writes use system clock directly.
+
+## Deferred from: code review of story 2-6 (2026-05-11)
+
+- **TripLiveIndicatorTest / AlertStripTest test extracted logic not Compose behavior** — Unit tests verify pure logic (scale branching, message formatting) but never render the composable. Acceptable for unit scope, but Compose UI integration tests should be added when test infrastructure supports them.
+
+## Deferred from: code review of story 2-7 (2026-05-11)
+
+- **`recoverGapToDriving` resets Driving state with zeroed distanceKm/durationMs** — `DrivingState.Driving(tripId, 0.0, 0L)` causes HUD consumers to see distance drop to 0 after gap recovery. Pre-existing pattern from Story 2-2 where `resumeDriving` also zeroes these fields.
+- **No test for coroutine-based gap timeout path** — The `delay`-driven timeout in `enterGapCheck` (where no location update ever arrives) is untested. All existing gap timeout tests trigger via a late location update in `handleGapCheck`. Requires `advanceTimeBy` + `StandardTestDispatcher` test infrastructure.
+

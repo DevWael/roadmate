@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -61,6 +62,9 @@ class TripDetectorTest {
             stopTimeoutMs = 5_000,
             driftAccuracyThreshold = 30f,
             driftSpeedThreshold = 5.0f,
+            gapThresholdMs = 30_000,
+            gapTimeoutMs = 300_000,
+            teleportSpeedKmh = 200.0,
         ),
         testScope: TestScope,
     ): TripDetector {
@@ -81,9 +85,11 @@ class TripDetectorTest {
         speedKmh: Float = 0f,
         accuracy: Float = 10f,
         timestamp: Long = System.currentTimeMillis(),
+        lat: Double = 37.7749,
+        lng: Double = -122.4194,
     ) = LocationUpdate(
-        lat = 37.7749,
-        lng = -122.4194,
+        lat = lat,
+        lng = lng,
         speedKmh = speedKmh,
         altitude = 50.0,
         accuracy = accuracy,
@@ -314,6 +320,7 @@ class TripDetectorTest {
 
             assertNotNull(endEvent)
             assertEquals(3000L, endEvent!!.endTime)
+            assertEquals(TripStatus.COMPLETED, endEvent!!.status)
             eventJob.cancel()
         }
     }
@@ -506,6 +513,7 @@ class TripDetectorTest {
 
             assertNotNull(endEvent)
             assertEquals(3000L, endEvent!!.endTime)
+            assertEquals(TripStatus.COMPLETED, endEvent!!.status)
             eventJob.cancel()
         }
 
@@ -521,7 +529,6 @@ class TripDetectorTest {
                 detector.process(locationUpdate(speedKmh = 10f))
                 detector.process(locationUpdate(speedKmh = 10f))
                 detector.process(locationUpdate(speedKmh = 10f))
-                // Stays Idle — no vehicle means no trip, no UI flicker
                 expectNoEvents()
             }
 
@@ -673,6 +680,265 @@ class TripDetectorTest {
                 detector.process(locationUpdate(speedKmh = 10f))
                 assertTrue(awaitItem() is DrivingState.Driving)
             }
+        }
+    }
+
+    @Nested
+    @DisplayName("Gap detection (AC #1)")
+    inner class GapDetection {
+
+        @Test
+        @DisplayName("transitions to GapCheck when GPS gap exceeds threshold while Driving")
+        fun transitionsToGapCheckOnGap() = runTest {
+            val detector = createDetector(testScope = this)
+
+            drivingStateManager.drivingState.test {
+                assertEquals(DrivingState.Idle, awaitItem())
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 0L))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 1000L))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 2000L))
+                assertTrue(awaitItem() is DrivingState.Driving)
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 35000L))
+                val gapState = awaitItem()
+                assertTrue(gapState is DrivingState.GapCheck)
+                assertTrue((gapState as DrivingState.GapCheck).gapDurationMs >= 30_000L)
+            }
+        }
+
+        @Test
+        @DisplayName("does not transition to GapCheck for short gaps")
+        fun noGapCheckForShortGaps() = runTest {
+            val detector = createDetector(testScope = this)
+
+            drivingStateManager.drivingState.test {
+                assertEquals(DrivingState.Idle, awaitItem())
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 0L))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 1000L))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 2000L))
+                assertTrue(awaitItem() is DrivingState.Driving)
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 25000L))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 28000L))
+                expectNoEvents()
+            }
+        }
+
+        @Test
+        @DisplayName("trip continues during GapCheck — same tripId preserved")
+        fun tripContinuesDuringGapCheck() = runTest {
+            val detector = createDetector(testScope = this)
+
+            drivingStateManager.drivingState.test {
+                assertEquals(DrivingState.Idle, awaitItem())
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 0L))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 1000L))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 2000L))
+                val driving = awaitItem() as DrivingState.Driving
+                val tripId = driving.tripId
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 35000L))
+                assertTrue(awaitItem() is DrivingState.GapCheck)
+
+                val trip = fakeTripDao.trips[tripId]
+                assertNotNull(trip)
+                assertEquals(TripStatus.ACTIVE, trip!!.status)
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Gap recovery moving (AC #2)")
+    inner class GapRecoveryMoving {
+
+        @Test
+        @DisplayName("recovers to Driving when GPS returns with speed >8 within 5min")
+        fun recoversToDrivingWithHighSpeed() = runTest {
+            val detector = createDetector(testScope = this)
+
+            drivingStateManager.drivingState.test {
+                assertEquals(DrivingState.Idle, awaitItem())
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 0L))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 1000L))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 2000L))
+                val original = awaitItem() as DrivingState.Driving
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 35000L))
+                assertTrue(awaitItem() is DrivingState.GapCheck)
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 60000L))
+                val recovered = awaitItem()
+                assertTrue(recovered is DrivingState.Driving)
+                assertEquals(original.tripId, (recovered as DrivingState.Driving).tripId)
+            }
+        }
+
+        @Test
+        @DisplayName("emits GapRecoveredEvent with plausible distance")
+        fun emitsGapRecoveredEvent() = runTest {
+            val detector = createDetector(testScope = this)
+            var gapEvent: GapRecoveredEvent? = null
+            val gapJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+                detector.gapRecoveredEvents.collect { gapEvent = it }
+            }
+
+            drivingStateManager.drivingState.test {
+                assertEquals(DrivingState.Idle, awaitItem())
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 0L, lat = 37.7749, lng = -122.4194))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 1000L))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 2000L))
+                assertTrue(awaitItem() is DrivingState.Driving)
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 35000L, lat = 37.7749, lng = -122.4194))
+                assertTrue(awaitItem() is DrivingState.GapCheck)
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 60000L, lat = 37.7849, lng = -122.4194))
+                assertTrue(awaitItem() is DrivingState.Driving)
+            }
+
+            assertNotNull(gapEvent)
+            assertTrue(gapEvent!!.gapDistanceKm > 0)
+            assertTrue(gapEvent!!.isPlausible)
+            gapJob.cancel()
+        }
+    }
+
+    @Nested
+    @DisplayName("Gap recovery stopped (AC #3)")
+    inner class GapRecoveryStopped {
+
+        @Test
+        @DisplayName("recovers to Stopping when GPS returns with speed <3 within 5min")
+        fun recoversToStoppingWithLowSpeed() = runTest {
+            val detector = createDetector(testScope = this)
+
+            drivingStateManager.drivingState.test {
+                assertEquals(DrivingState.Idle, awaitItem())
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 0L))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 1000L))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 2000L))
+                assertTrue(awaitItem() is DrivingState.Driving)
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 35000L))
+                assertTrue(awaitItem() is DrivingState.GapCheck)
+
+                detector.process(locationUpdate(speedKmh = 1f, timestamp = 60000L))
+                assertTrue(awaitItem() is DrivingState.Stopping)
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Gap timeout (AC #4)")
+    inner class GapTimeout {
+
+        @Test
+        @DisplayName("ends trip as INTERRUPTED when gap exceeds 5min via location update")
+        fun endsTripInterruptedOnGapTimeout() = runTest {
+            val detector = createDetector(testScope = this)
+            var endEvent: TripEndEvent? = null
+            val eventJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+                detector.tripEndEvents.collect { endEvent = it }
+            }
+
+            drivingStateManager.drivingState.test {
+                assertEquals(DrivingState.Idle, awaitItem())
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 0L))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 1000L))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 2000L))
+                assertTrue(awaitItem() is DrivingState.Driving)
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 35000L))
+                assertTrue(awaitItem() is DrivingState.GapCheck)
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 340000L))
+                assertEquals(DrivingState.Idle, awaitItem())
+            }
+
+            assertNotNull(endEvent)
+            assertEquals(TripStatus.INTERRUPTED, endEvent!!.status)
+            eventJob.cancel()
+        }
+    }
+
+    @Nested
+    @DisplayName("Teleport detection (AC #5)")
+    inner class TeleportDetection {
+
+        @Test
+        @DisplayName("marks gap as implausible when implied speed >200 km/h")
+        fun marksImplausibleOnTeleport() = runTest {
+            val detector = createDetector(testScope = this)
+            var gapEvent: GapRecoveredEvent? = null
+            val gapJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+                detector.gapRecoveredEvents.collect { gapEvent = it }
+            }
+
+            drivingStateManager.drivingState.test {
+                assertEquals(DrivingState.Idle, awaitItem())
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 0L, lat = 37.7749, lng = -122.4194))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 1000L, lat = 37.7749, lng = -122.4194))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 2000L, lat = 37.7749, lng = -122.4194))
+                assertTrue(awaitItem() is DrivingState.Driving)
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 35000L, lat = 37.7749, lng = -122.4194))
+                assertTrue(awaitItem() is DrivingState.GapCheck)
+
+                detector.process(locationUpdate(
+                    speedKmh = 10f,
+                    timestamp = 60000L,
+                    lat = 40.7128,
+                    lng = -74.0060,
+                ))
+                assertTrue(awaitItem() is DrivingState.Driving)
+            }
+
+            assertNotNull(gapEvent)
+            assertTrue(gapEvent!!.gapDistanceKm > 0)
+            assertEquals(false, gapEvent!!.isPlausible)
+            gapJob.cancel()
+        }
+
+        @Test
+        @DisplayName("plausible distance within 200 km/h is accepted")
+        fun plausibleDistanceAccepted() = runTest {
+            val detector = createDetector(testScope = this)
+            var gapEvent: GapRecoveredEvent? = null
+            val gapJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+                detector.gapRecoveredEvents.collect { gapEvent = it }
+            }
+
+            drivingStateManager.drivingState.test {
+                assertEquals(DrivingState.Idle, awaitItem())
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 0L, lat = 37.7749, lng = -122.4194))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 1000L))
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 2000L))
+                assertTrue(awaitItem() is DrivingState.Driving)
+
+                detector.process(locationUpdate(speedKmh = 10f, timestamp = 35000L))
+                assertTrue(awaitItem() is DrivingState.GapCheck)
+
+                detector.process(locationUpdate(
+                    speedKmh = 10f,
+                    timestamp = 40000L,
+                    lat = 37.7849,
+                    lng = -122.4194,
+                ))
+                assertTrue(awaitItem() is DrivingState.Driving)
+            }
+
+            assertNotNull(gapEvent)
+            assertTrue(gapEvent!!.isPlausible)
+            gapJob.cancel()
         }
     }
 }

@@ -16,6 +16,7 @@ data class TripPointSyncDto(
     val altitude: Double,
     val accuracy: Float,
     val timestamp: Long,
+    val isGapBoundary: Boolean = false,
     val lastModified: Long,
 )
 
@@ -28,6 +29,7 @@ fun TripPoint.toSyncDto() = TripPointSyncDto(
     altitude = altitude,
     accuracy = accuracy,
     timestamp = timestamp,
+    isGapBoundary = isGapBoundary,
     lastModified = lastModified,
 )
 
@@ -40,5 +42,6 @@ fun TripPointSyncDto.toEntity() = TripPoint(
     altitude = altitude,
     accuracy = accuracy,
     timestamp = timestamp,
+    isGapBoundary = isGapBoundary,
     lastModified = lastModified,
 )

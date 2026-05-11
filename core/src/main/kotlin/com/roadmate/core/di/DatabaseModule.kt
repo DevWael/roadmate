@@ -31,6 +31,7 @@ object DatabaseModule {
     fun provideDatabase(@ApplicationContext context: Context): RoadMateDatabase =
         Room.databaseBuilder(context, RoadMateDatabase::class.java, "roadmate.db")
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+            .addMigrations(RoadMateDatabase.MIGRATION_1_2)
             .build()
 
     @Provides

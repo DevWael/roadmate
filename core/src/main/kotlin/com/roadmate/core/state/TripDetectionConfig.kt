@@ -7,4 +7,8 @@ data class TripDetectionConfig(
     val stopTimeoutMs: Long = 120_000,
     val driftAccuracyThreshold: Float = 30f,
     val driftSpeedThreshold: Float = 5.0f,
+    val gapThresholdMs: Long = 30_000,
+    val gapTimeoutMs: Long = 300_000,
+    val teleportSpeedKmh: Double = 200.0,
+    val accuracyRampMaxMeters: Float = 50f,
 )

@@ -11,7 +11,9 @@ import com.roadmate.core.util.Clock
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -22,17 +24,15 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
-data class TripEndEvent(val tripId: String, val endTime: Long)
+data class TripEndEvent(val tripId: String, val endTime: Long, val status: TripStatus = TripStatus.COMPLETED)
 
-/**
- * Detects trip start/stop based on GPS speed readings.
- *
- * This class is NOT thread-safe. [process] must be called from a single
- * thread (recommended: main thread via the service's location callback).
- *
- * The internal [scope] is process-scoped by design — as a [Singleton], it
- * lives for the entire process lifetime and does not require cancellation.
- */
+data class GapRecoveredEvent(
+    val tripId: String,
+    val gapDurationMs: Long,
+    val gapDistanceKm: Double,
+    val isPlausible: Boolean,
+)
+
 @Singleton
 class TripDetector(
     private val config: TripDetectionConfig,
@@ -62,10 +62,18 @@ class TripDetector(
     private var firstStopTimestamp: Long? = null
     private var currentTripId: String? = null
 
+    private var lastLocationTimestamp: Long? = null
+    private var lastProcessedLocation: LocationUpdate? = null
+    private var gapStartTimestamp: Long? = null
+    private var preGapLocation: LocationUpdate? = null
+    private var gapTimeoutJob: Job? = null
+
     private val _tripEndEvents = MutableSharedFlow<TripEndEvent>(extraBufferCapacity = 1)
     val tripEndEvents: SharedFlow<TripEndEvent> = _tripEndEvents.asSharedFlow()
 
-    /** Cached vehicle ID — collected from [activeVehicleId] flow to allow synchronous checks. */
+    private val _gapRecoveredEvents = MutableSharedFlow<GapRecoveredEvent>(extraBufferCapacity = 1)
+    val gapRecoveredEvents: SharedFlow<GapRecoveredEvent> = _gapRecoveredEvents.asSharedFlow()
+
     @Volatile
     private var cachedVehicleId: String? = null
 
@@ -75,11 +83,6 @@ class TripDetector(
         }
     }
 
-    /**
-     * Process a single location update through the state machine.
-     *
-     * Must be called from a single thread — this method is not thread-safe.
-     */
     @MainThread
     fun process(update: LocationUpdate) {
         if (isDrift(update)) return
@@ -88,8 +91,11 @@ class TripDetector(
             is DrivingState.Idle -> handleIdle(update)
             is DrivingState.Driving -> handleDriving(update)
             is DrivingState.Stopping -> handleStopping(update)
-            is DrivingState.GapCheck -> { }
+            is DrivingState.GapCheck -> handleGapCheck(update)
         }
+
+        lastProcessedLocation = update
+        lastLocationTimestamp = update.timestamp
     }
 
     private fun isDrift(update: LocationUpdate): Boolean {
@@ -115,6 +121,12 @@ class TripDetector(
     }
 
     private fun handleDriving(update: LocationUpdate) {
+        val lastTs = lastLocationTimestamp
+        if (lastTs != null && (update.timestamp - lastTs) >= config.gapThresholdMs) {
+            enterGapCheck(update, update.timestamp - lastTs)
+            return
+        }
+
         if (update.speedKmh < config.stopSpeedKmh) {
             firstStopTimestamp = update.timestamp
             drivingStateManager.updateState(DrivingState.Stopping(timeSinceStopMs = 0L))
@@ -134,6 +146,99 @@ class TripDetector(
         } else {
             drivingStateManager.updateState(DrivingState.Stopping(timeSinceStopMs = elapsed))
         }
+    }
+
+    private fun handleGapCheck(update: LocationUpdate) {
+        val gapStart = gapStartTimestamp ?: run {
+            drivingStateManager.updateState(DrivingState.Idle)
+            return
+        }
+        val gapDurationMs = update.timestamp - gapStart
+
+        if (gapDurationMs >= config.gapTimeoutMs) {
+            gapTimeoutJob?.cancel()
+            gapTimeoutJob = null
+            endTripInterrupted(gapStart)
+            return
+        }
+
+        if (update.speedKmh > config.startSpeedKmh) {
+            gapTimeoutJob?.cancel()
+            gapTimeoutJob = null
+            recoverGapToDriving(update, gapDurationMs)
+        } else if (update.speedKmh < config.stopSpeedKmh) {
+            gapTimeoutJob?.cancel()
+            gapTimeoutJob = null
+            recoverGapToStopping(update)
+        } else {
+            drivingStateManager.updateState(DrivingState.GapCheck(gapDurationMs = gapDurationMs))
+        }
+    }
+
+    private fun enterGapCheck(update: LocationUpdate, gapDurationMs: Long) {
+        preGapLocation = lastProcessedLocation
+        gapStartTimestamp = update.timestamp - gapDurationMs
+        drivingStateManager.updateState(DrivingState.GapCheck(gapDurationMs = gapDurationMs))
+
+        gapTimeoutJob?.cancel()
+        gapTimeoutJob = scope.launch(ioDispatcher) {
+            delay(config.gapTimeoutMs - gapDurationMs)
+            val tripId = currentTripId ?: return@launch
+            val endTs = gapStartTimestamp ?: clock.now()
+            drivingStateManager.updateState(DrivingState.Idle)
+            _tripEndEvents.emit(TripEndEvent(tripId, endTs, TripStatus.INTERRUPTED))
+            resetState()
+            Timber.w("Gap timeout: trip $tripId ended as INTERRUPTED (GPS signal lost)")
+        }
+    }
+
+    private fun recoverGapToDriving(update: LocationUpdate, gapDurationMs: Long) {
+        val tripId = currentTripId ?: return
+        val preGap = preGapLocation
+
+        val gapDistanceKm = if (preGap != null) {
+            com.roadmate.core.util.HaversineCalculator.haversineDistanceKm(
+                preGap.lat, preGap.lng, update.lat, update.lng,
+            )
+        } else 0.0
+
+        val impliedSpeedKmh = if (gapDurationMs > 0) gapDistanceKm / (gapDurationMs / 3_600_000.0) else 0.0
+        val isPlausible = impliedSpeedKmh <= config.teleportSpeedKmh
+
+        scope.launch { _gapRecoveredEvents.emit(GapRecoveredEvent(tripId, gapDurationMs, gapDistanceKm, isPlausible)) }
+
+        preGapLocation = null
+        gapStartTimestamp = null
+        firstStopTimestamp = null
+        drivingStateManager.updateState(DrivingState.Driving(tripId, 0.0, 0L))
+
+        Timber.d("Gap recovery → Driving: gapDuration=${gapDurationMs}ms, gapDist=${gapDistanceKm}km, plausible=$isPlausible")
+    }
+
+    private fun recoverGapToStopping(update: LocationUpdate) {
+        val tripId = currentTripId ?: return
+
+        val preGap = preGapLocation
+        val gapDistanceKm = if (preGap != null) {
+            com.roadmate.core.util.HaversineCalculator.haversineDistanceKm(
+                preGap.lat, preGap.lng, update.lat, update.lng,
+            )
+        } else 0.0
+
+        val gapStart = gapStartTimestamp ?: update.timestamp
+        val gapDurationMs = update.timestamp - gapStart
+
+        val impliedSpeedKmh = if (gapDurationMs > 0) gapDistanceKm / (gapDurationMs / 3_600_000.0) else 0.0
+        val isPlausible = impliedSpeedKmh <= config.teleportSpeedKmh
+
+        scope.launch { _gapRecoveredEvents.emit(GapRecoveredEvent(tripId, gapDurationMs, gapDistanceKm, isPlausible)) }
+
+        preGapLocation = null
+        gapStartTimestamp = null
+        firstStopTimestamp = update.timestamp
+        drivingStateManager.updateState(DrivingState.Stopping(timeSinceStopMs = 0L))
+
+        Timber.d("Gap recovery → Stopping: gapDuration=${gapDurationMs}ms")
     }
 
     private fun resumeDriving() {
@@ -176,9 +281,7 @@ class TripDetector(
 
     private fun endTrip(endTime: Long) {
         val tripId = currentTripId
-        currentTripId = null
-        firstStopTimestamp = null
-        consecutiveHighSpeedCount = 0
+        resetState()
         drivingStateManager.updateState(DrivingState.Idle)
 
         if (tripId != null) {
@@ -186,5 +289,30 @@ class TripDetector(
                 _tripEndEvents.emit(TripEndEvent(tripId, endTime))
             }
         }
+    }
+
+    private fun endTripInterrupted(endTime: Long) {
+        val tripId = currentTripId
+        resetState()
+        drivingStateManager.updateState(DrivingState.Idle)
+
+        if (tripId != null) {
+            scope.launch {
+                _tripEndEvents.emit(TripEndEvent(tripId, endTime, TripStatus.INTERRUPTED))
+            }
+        }
+    }
+
+    private fun resetState() {
+        currentTripId = null
+        firstStopTimestamp = null
+        firstHighSpeedTimestamp = null
+        consecutiveHighSpeedCount = 0
+        lastLocationTimestamp = null
+        lastProcessedLocation = null
+        gapStartTimestamp = null
+        preGapLocation = null
+        gapTimeoutJob?.cancel()
+        gapTimeoutJob = null
     }
 }

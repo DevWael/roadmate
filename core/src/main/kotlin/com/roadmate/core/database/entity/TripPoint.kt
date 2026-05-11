@@ -45,6 +45,9 @@ data class TripPoint(
 
     val timestamp: Long,
 
+    @ColumnInfo(name = "is_gap_boundary", defaultValue = "0")
+    val isGapBoundary: Boolean = false,
+
     @ColumnInfo(name = "last_modified")
     val lastModified: Long = System.currentTimeMillis(),
 )
