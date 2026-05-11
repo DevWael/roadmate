@@ -98,3 +98,9 @@
 - **AC #4: onTap navigation not wired** — Spec says "Tapping navigates to maintenance detail." Callback exists but requires navigation graph from consuming screen. Integration deferred to dashboard polish story.
 - **dailyAverage doesn't filter trips to last 30 days** — Function accepts raw list with no enforcement of the 30-day window. Caller must pre-filter. Pre-existing contract gap.
 
+## Deferred from: code review of story 3-5 (2026-05-12)
+
+- **`expiryDate` defaults to `System.currentTimeMillis()`** — New document form initializes expiry to current timestamp, causing immediate "expiring today" if saved without touching date picker. Pre-existing pattern from AddMaintenanceFormState.
+- **No input length limits on name/notes fields** — AddDocumentSheet text fields accept unbounded input. Project-wide concern not specific to this story.
+- **`daysUntilExpiry` timezone sensitivity** — Uses `ZoneId.systemDefault()` which can produce ±1 day variance across timezone changes. Systemic issue affecting all date calculations in the app.
+
