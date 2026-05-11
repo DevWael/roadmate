@@ -172,6 +172,59 @@ class MaintenanceRepositoryTest {
         assertNull(fakeDao.records["r-1"])
     }
 
+    // --- Transactional operation tests ---
+
+    @Test
+    fun `completeMaintenance creates record and updates schedule`() = runTest {
+        val schedule = createTestSchedule(id = "s-1", vehicleId = "v-1")
+        fakeDao.schedules["s-1"] = schedule
+        fakeDao.updateScheduleFlow()
+
+        val record = createTestRecord(id = "r-1", scheduleId = "s-1", vehicleId = "v-1")
+        val updatedSchedule = schedule.copy(lastServiceKm = record.odometerKm, lastServiceDate = record.datePerformed)
+
+        val result = repository.completeMaintenance(record, updatedSchedule)
+        assertTrue(result.isSuccess)
+        assertEquals(record, fakeDao.records["r-1"])
+        assertEquals(updatedSchedule, fakeDao.schedules["s-1"])
+    }
+
+    @Test
+    fun `completeMaintenance returns failure when dao throws`() = runTest {
+        fakeDao.shouldThrow = true
+        val record = createTestRecord()
+        val schedule = createTestSchedule()
+
+        val result = repository.completeMaintenance(record, schedule)
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `undoCompletion deletes record and reverts schedule`() = runTest {
+        val schedule = createTestSchedule(id = "s-1")
+        val originalSchedule = schedule.copy(lastServiceKm = 80000.0)
+        fakeDao.schedules["s-1"] = schedule.copy(lastServiceKm = 90000.0)
+        fakeDao.updateScheduleFlow()
+
+        val record = createTestRecord(id = "r-1", scheduleId = "s-1")
+        fakeDao.records["r-1"] = record
+        fakeDao.updateRecordFlow()
+
+        val result = repository.undoCompletion("r-1", originalSchedule)
+        assertTrue(result.isSuccess)
+        assertNull(fakeDao.records["r-1"])
+        assertEquals(80000.0, fakeDao.schedules["s-1"]!!.lastServiceKm, 0.01)
+    }
+
+    @Test
+    fun `undoCompletion returns failure when dao throws`() = runTest {
+        fakeDao.shouldThrow = true
+        val schedule = createTestSchedule()
+
+        val result = repository.undoCompletion("r-1", schedule)
+        assertTrue(result.isFailure)
+    }
+
     private fun createTestSchedule(
         id: String = "sched-1",
         vehicleId: String = "vehicle-1",
@@ -202,7 +255,7 @@ class MaintenanceRepositoryTest {
 /**
  * Fake implementation of [MaintenanceDao] for unit testing.
  */
-private class FakeMaintenanceDao : MaintenanceDao {
+private class FakeMaintenanceDao : MaintenanceDao() {
     val schedules = mutableMapOf<String, MaintenanceSchedule>()
     val records = mutableMapOf<String, MaintenanceRecord>()
     var shouldThrow = false

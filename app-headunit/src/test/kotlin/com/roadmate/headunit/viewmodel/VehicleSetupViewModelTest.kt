@@ -345,7 +345,7 @@ private class FakeVehicleDao : VehicleDao {
     }
 }
 
-private class FakeMaintenanceDao : MaintenanceDao {
+private class FakeMaintenanceDao : MaintenanceDao() {
     val schedules = mutableListOf<MaintenanceSchedule>()
     val records = mutableListOf<MaintenanceRecord>()
     var shouldThrow = false

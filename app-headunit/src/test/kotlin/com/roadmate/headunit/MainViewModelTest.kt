@@ -306,7 +306,7 @@ class MainViewModelTest {
     }
 }
 
-private class FakeMainMaintenanceDao : MaintenanceDao {
+private class FakeMainMaintenanceDao : MaintenanceDao() {
     val schedules = mutableMapOf<String, MaintenanceSchedule>()
     private val scheduleFlow = MutableStateFlow<List<MaintenanceSchedule>>(emptyList())
 
