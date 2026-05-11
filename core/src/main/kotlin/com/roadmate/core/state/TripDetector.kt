@@ -13,11 +13,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+
+data class TripEndEvent(val tripId: String, val endTime: Long)
 
 /**
  * Detects trip start/stop based on GPS speed readings.
@@ -57,8 +62,8 @@ class TripDetector(
     private var firstStopTimestamp: Long? = null
     private var currentTripId: String? = null
 
-    /** Local reference to the active trip — eliminates the race between async save and endTrip query. */
-    private var pendingTrip: Trip? = null
+    private val _tripEndEvents = MutableSharedFlow<TripEndEvent>(extraBufferCapacity = 1)
+    val tripEndEvents: SharedFlow<TripEndEvent> = _tripEndEvents.asSharedFlow()
 
     /** Cached vehicle ID — collected from [activeVehicleId] flow to allow synchronous checks. */
     @Volatile
@@ -160,7 +165,6 @@ class TripDetector(
             endOdometerKm = 0.0,
             status = TripStatus.ACTIVE,
         )
-        pendingTrip = trip
         drivingStateManager.updateState(DrivingState.Driving(tripId, 0.0, 0L))
 
         scope.launch(ioDispatcher) {
@@ -172,24 +176,14 @@ class TripDetector(
 
     private fun endTrip(endTime: Long) {
         val tripId = currentTripId
-        val trip = pendingTrip
         currentTripId = null
-        pendingTrip = null
         firstStopTimestamp = null
         consecutiveHighSpeedCount = 0
         drivingStateManager.updateState(DrivingState.Idle)
 
-        if (tripId != null && trip != null) {
-            val completed = trip.copy(
-                endTime = endTime,
-                durationMs = endTime - trip.startTime,
-                status = TripStatus.COMPLETED,
-                lastModified = clock.now(),
-            )
-            scope.launch(ioDispatcher) {
-                tripRepository.saveTrip(completed)
-                    .onSuccess { Timber.d("Trip completed: $tripId") }
-                    .onFailure { Timber.e(it, "Failed to finalize trip: $tripId") }
+        if (tripId != null) {
+            scope.launch {
+                _tripEndEvents.emit(TripEndEvent(tripId, endTime))
             }
         }
     }

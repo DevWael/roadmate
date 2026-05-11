@@ -16,6 +16,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -291,6 +292,10 @@ class TripDetectorTest {
         @DisplayName("sets endTime to first-stop timestamp, not timeout timestamp")
         fun setsEndTimeToFirstStop() = runTest {
             val detector = createDetector(testScope = this)
+            var endEvent: TripEndEvent? = null
+            val eventJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+                detector.tripEndEvents.collect { endEvent = it }
+            }
 
             drivingStateManager.drivingState.test {
                 assertEquals(DrivingState.Idle, awaitItem())
@@ -307,10 +312,9 @@ class TripDetectorTest {
                 assertEquals(DrivingState.Idle, awaitItem())
             }
 
-            val trip = fakeTripDao.trips.values.firstOrNull()
-            assertNotNull(trip)
-            assertEquals(3000L, trip!!.endTime)
-            assertEquals(TripStatus.COMPLETED, trip.status)
+            assertNotNull(endEvent)
+            assertEquals(3000L, endEvent!!.endTime)
+            eventJob.cancel()
         }
     }
 
@@ -480,6 +484,10 @@ class TripDetectorTest {
         @DisplayName("finalizes Trip with COMPLETED status on Stopping to Idle")
         fun finalizesTripCompleted() = runTest {
             val detector = createDetector(testScope = this)
+            var endEvent: TripEndEvent? = null
+            val eventJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+                detector.tripEndEvents.collect { endEvent = it }
+            }
 
             drivingStateManager.drivingState.test {
                 assertEquals(DrivingState.Idle, awaitItem())
@@ -487,7 +495,7 @@ class TripDetectorTest {
                 detector.process(locationUpdate(speedKmh = 10f, timestamp = 0L))
                 detector.process(locationUpdate(speedKmh = 10f, timestamp = 1000L))
                 detector.process(locationUpdate(speedKmh = 10f, timestamp = 2000L))
-                assertTrue(awaitItem() is DrivingState.Driving)
+                val driving = awaitItem() as DrivingState.Driving
 
                 detector.process(locationUpdate(speedKmh = 2f, timestamp = 3000L))
                 assertTrue(awaitItem() is DrivingState.Stopping)
@@ -496,10 +504,9 @@ class TripDetectorTest {
                 assertEquals(DrivingState.Idle, awaitItem())
             }
 
-            val trip = fakeTripDao.trips.values.firstOrNull()
-            assertNotNull(trip)
-            assertEquals(TripStatus.COMPLETED, trip!!.status)
-            assertEquals(3000L, trip.endTime)
+            assertNotNull(endEvent)
+            assertEquals(3000L, endEvent!!.endTime)
+            eventJob.cancel()
         }
 
         @Test
@@ -530,6 +537,10 @@ class TripDetectorTest {
         @DisplayName("complete trip: Idle -> Driving -> Stopping -> Idle")
         fun completeTrip() = runTest {
             val detector = createDetector(testScope = this)
+            var endEvent: TripEndEvent? = null
+            val eventJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+                detector.tripEndEvents.collect { endEvent = it }
+            }
 
             drivingStateManager.drivingState.test {
                 assertEquals(DrivingState.Idle, awaitItem())
@@ -550,16 +561,19 @@ class TripDetectorTest {
             }
 
             assertEquals(1, fakeTripDao.trips.size)
-            val trip = fakeTripDao.trips.values.first()
-            assertEquals(TripStatus.COMPLETED, trip.status)
-            assertEquals(5000L, trip.endTime)
-            assertEquals(5000L, trip.durationMs)
+            assertNotNull(endEvent)
+            assertEquals(5000L, endEvent!!.endTime)
+            eventJob.cancel()
         }
 
         @Test
         @DisplayName("trip with resume: Idle -> Driving -> Stopping -> Driving -> Stopping -> Idle")
         fun tripWithResume() = runTest {
             val detector = createDetector(testScope = this)
+            var endEvent: TripEndEvent? = null
+            val eventJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+                detector.tripEndEvents.collect { endEvent = it }
+            }
 
             drivingStateManager.drivingState.test {
                 assertEquals(DrivingState.Idle, awaitItem())
@@ -587,8 +601,8 @@ class TripDetectorTest {
             }
 
             assertEquals(1, fakeTripDao.trips.size)
-            val trip = fakeTripDao.trips.values.first()
-            assertEquals(TripStatus.COMPLETED, trip.status)
+            assertNotNull(endEvent)
+            eventJob.cancel()
         }
 
         @Test
@@ -663,7 +677,7 @@ class TripDetectorTest {
     }
 }
 
-private class FakeTripDao : TripDao {
+private class FakeTripDao : TripDao() {
     val trips = mutableMapOf<String, Trip>()
     val tripPoints = mutableMapOf<String, TripPoint>()
     var shouldThrow = false

@@ -52,4 +52,7 @@ class TripRepository @Inject constructor(
 
     suspend fun deleteTripPoint(tripPoint: TripPoint): Result<Unit> =
         runCatching { tripDao.deleteTripPoint(tripPoint) }
+
+    suspend fun flushTripPointsAndTrip(tripPoints: List<TripPoint>, trip: Trip): Result<Unit> =
+        runCatching { tripDao.flushTripPointsAndTrip(tripPoints, trip) }
 }

@@ -117,6 +117,32 @@ class TripRepositoryTest {
         assertNull(fakeDao.trips["t-1"])
     }
 
+    @Test
+    fun `flushTripPointsAndTrip saves points and trip atomically`() = runTest {
+        val trip = createTestTrip(id = "t-1")
+        val points = listOf(
+            createTestTripPoint(id = "tp-1", tripId = "t-1"),
+            createTestTripPoint(id = "tp-2", tripId = "t-1"),
+        )
+
+        val result = repository.flushTripPointsAndTrip(points, trip)
+
+        assertTrue(result.isSuccess)
+        assertEquals(trip, fakeDao.trips["t-1"])
+        assertEquals(2, fakeDao.tripPoints.size)
+    }
+
+    @Test
+    fun `flushTripPointsAndTrip returns failure when dao throws`() = runTest {
+        fakeDao.shouldThrow = true
+        val trip = createTestTrip()
+        val points = listOf(createTestTripPoint())
+
+        val result = repository.flushTripPointsAndTrip(points, trip)
+
+        assertTrue(result.isFailure)
+    }
+
     private fun createTestTrip(
         id: String = "test-id",
         vehicleId: String = "v-1",
@@ -153,7 +179,7 @@ class TripRepositoryTest {
 /**
  * Fake implementation of [TripDao] for unit testing.
  */
-private class FakeTripDao : TripDao {
+private class FakeTripDao : TripDao() {
     val trips = mutableMapOf<String, Trip>()
     val tripPoints = mutableMapOf<String, TripPoint>()
     var shouldThrow = false

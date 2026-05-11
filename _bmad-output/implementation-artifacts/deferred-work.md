@@ -54,3 +54,9 @@
 - **`GapCheck` state silently ignored** — `process()` has an empty handler for `DrivingState.GapCheck` with no logging. GapCheck handling is defined in Story 2-7 (GPS Gap Handling).
 - **3-consecutive-readings doesn't enforce 9s timing** — AC says "9s" assuming 3s GPS interval, but code counts readings regardless of time gap. Timing enforcement is the responsibility of GPS interval configuration, not the state machine.
 
+## Deferred from: code review of story 2-3 (2026-05-11)
+
+- **No test for 10-second periodic flush timer (AC #2)** — All tests use immediate finalization via TripEndEvent. The periodic `delay(FLUSH_INTERVAL_MS)` path in `startFlushTimer` is untested. Requires `advanceTimeBy` test infrastructure with `StandardTestDispatcher`.
+- **`cityConsumption` defaults to 0.0 when vehicle not found** — `vehicleRepository.getVehicle().firstOrNull()` returns null → `cityConsumption = 0.0` → `estimatedFuelL = 0.0`. Silently wrong data rather than indicating "unknown". Pre-existing vehicle lookup pattern.
+- **`startOdometerKm` defaults to 0.0 when trip not loaded from DB** — If `ensureTripLoaded()` can't find the trip, `startOdometerKm = 0.0`. End odometer becomes `0.0 + distanceKm`. Linked to the async race between TripDetector.saveTrip and TripRecorder's first flush.
+
