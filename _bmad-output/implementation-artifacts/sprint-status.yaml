@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-08T22:57:00+03:00"
-last_updated: "2026-05-11T22:48:00+03:00"
+last_updated: "2026-05-11T23:21:00+03:00"
 project: roadmate
 project_key: NOKEY
 tracking_system: file-system
@@ -62,7 +62,7 @@ development_status:
   2-5-odometer-auto-update-and-trip-list: done
   2-6-drivinghud-and-contextawarelayout: done
   2-7-gps-gap-handling-and-edge-cases: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 
   # Epic 3: Maintenance & Document Management with Notifications
   epic-3: in-progress
