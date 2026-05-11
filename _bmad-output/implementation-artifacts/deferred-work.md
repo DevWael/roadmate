@@ -91,3 +91,10 @@
 - **Three duplicate FakeMaintenanceDao implementations** — `MaintenanceRepositoryTest`, `VehicleSetupViewModelTest`, and `MaintenanceCompletionViewModelTest` each copy the full abstract DAO fake. Any new abstract method requires updating all three. Extract a shared `TestMaintenanceDao` into a `:core-test` or `testFixtures` module.
 - **Undo may silently fail after process death** — `cachedSchedule` and `_previousScheduleValues` are ViewModel-memory-only. If process death occurs within the 4-second Snackbar window, the Undo button callback fires on a fresh ViewModel with null fields and silently no-ops. Practically unlikely but architecturally impure.
 
+## Deferred from: code review of story 3-4 (2026-05-12)
+
+- **remainingKm/overdueKm return 0.0 for null intervalKm** — Conflates "no interval" with "exhausted." Callers can't distinguish. Pre-existing entity design; not introduced by this story.
+- **lastServiceDate epoch-to-LocalDate uses UTC** — Head unit runs in driver's local timezone. Late-night service records as next-day UTC, shifting predictions by a day. Pre-existing timezone design gap.
+- **AC #4: onTap navigation not wired** — Spec says "Tapping navigates to maintenance detail." Callback exists but requires navigation graph from consuming screen. Integration deferred to dashboard polish story.
+- **dailyAverage doesn't filter trips to last 30 days** — Function accepts raw list with no enforcement of the 30-day window. Caller must pre-filter. Pre-existing contract gap.
+
