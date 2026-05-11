@@ -82,3 +82,6 @@
 - **`recoverGapToDriving` resets Driving state with zeroed distanceKm/durationMs** — `DrivingState.Driving(tripId, 0.0, 0L)` causes HUD consumers to see distance drop to 0 after gap recovery. Pre-existing pattern from Story 2-2 where `resumeDriving` also zeroes these fields.
 - **No test for coroutine-based gap timeout path** — The `delay`-driven timeout in `enterGapCheck` (where no location update ever arrives) is untested. All existing gap timeout tests trigger via a late location update in `handleGapCheck`. Requires `advanceTimeBy` + `StandardTestDispatcher` test infrastructure.
 
+## Deferred from: code review of story 3-1 (2026-05-11)
+
+- **No `@Stable` annotation on `GaugeArcVariant` enum** — Pre-existing pattern across project enums. May cause unnecessary recompositions in Compose. Consider a project-wide pass to annotate all enums used in composable parameters.

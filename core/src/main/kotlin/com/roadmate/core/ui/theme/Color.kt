@@ -15,6 +15,7 @@ val RoadMateTertiary = Color(0xFFFFB74D)
 
 // ── Semantic ────────────────────────────────────────────────────────
 val RoadMateError = Color(0xFFEF5350)
+val RoadMateSuccess = Color(0xFF66BB6A)
 
 // ── Content ─────────────────────────────────────────────────────────
 val RoadMateOnSurface = Color(0xFFE8E8E8)

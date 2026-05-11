@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-08T22:57:00+03:00"
-last_updated: "2026-05-11T23:21:00+03:00"
+last_updated: "2026-05-11T23:45:00+03:00"
 project: roadmate
 project_key: NOKEY
 tracking_system: file-system
@@ -66,7 +66,7 @@ development_status:
 
   # Epic 3: Maintenance & Document Management with Notifications
   epic-3: in-progress
-  3-1-maintenance-progress-calculation-and-gaugearc-component: ready-for-dev
+  3-1-maintenance-progress-calculation-and-gaugearc-component: done
   3-2-maintenance-completion-flow: ready-for-dev
   3-3-custom-maintenance-items-and-interval-configuration: ready-for-dev
   3-4-maintenance-prediction-and-alerting-logic: ready-for-dev
