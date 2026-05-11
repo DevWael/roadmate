@@ -1,18 +1,24 @@
 package com.roadmate.headunit
 
 import app.cash.turbine.test
+import com.roadmate.core.database.dao.MaintenanceDao
 import com.roadmate.core.database.dao.TripDao
 import com.roadmate.core.database.dao.VehicleDao
 import com.roadmate.core.database.entity.EngineType
 import com.roadmate.core.database.entity.FuelType
+import com.roadmate.core.database.entity.MaintenanceRecord
+import com.roadmate.core.database.entity.MaintenanceSchedule
 import com.roadmate.core.database.entity.OdometerUnit
 import com.roadmate.core.database.entity.Trip
 import com.roadmate.core.database.entity.TripPoint
 import com.roadmate.core.database.entity.TripStatus
 import com.roadmate.core.database.entity.Vehicle
 import com.roadmate.core.repository.ActiveVehicleRepository
+import com.roadmate.core.repository.MaintenanceRepository
 import com.roadmate.core.repository.TripRepository
 import com.roadmate.core.repository.VehicleRepository
+import com.roadmate.core.state.DrivingStateManager
+import com.roadmate.core.state.LocationStateManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -43,9 +49,13 @@ class MainViewModelTest {
     private lateinit var fakeVehicleDao: FakeMainVehicleDao
     private lateinit var fakeTripDao: FakeMainTripDao
     private lateinit var fakeDataStore: FakeMainDataStore
+    private lateinit var fakeMaintenanceDao: FakeMainMaintenanceDao
     private lateinit var vehicleRepository: VehicleRepository
     private lateinit var tripRepository: TripRepository
     private lateinit var activeVehicleRepository: ActiveVehicleRepository
+    private lateinit var maintenanceRepository: MaintenanceRepository
+    private lateinit var drivingStateManager: DrivingStateManager
+    private lateinit var locationStateManager: LocationStateManager
 
     @BeforeEach
     fun setUp() {
@@ -53,9 +63,13 @@ class MainViewModelTest {
         fakeVehicleDao = FakeMainVehicleDao()
         fakeTripDao = FakeMainTripDao()
         fakeDataStore = FakeMainDataStore()
+        fakeMaintenanceDao = FakeMainMaintenanceDao()
         vehicleRepository = VehicleRepository(fakeVehicleDao)
         tripRepository = TripRepository(fakeTripDao)
         activeVehicleRepository = ActiveVehicleRepository(fakeDataStore)
+        maintenanceRepository = MaintenanceRepository(fakeMaintenanceDao)
+        drivingStateManager = DrivingStateManager()
+        locationStateManager = LocationStateManager()
     }
 
     @AfterEach
@@ -67,6 +81,9 @@ class MainViewModelTest {
         activeVehicleRepository = activeVehicleRepository,
         vehicleRepository = vehicleRepository,
         tripRepository = tripRepository,
+        maintenanceRepository = maintenanceRepository,
+        drivingStateManager = drivingStateManager,
+        locationStateManager = locationStateManager,
     )
 
     private fun testVehicle(
@@ -217,6 +234,128 @@ class MainViewModelTest {
             }
         }
     }
+    @Nested
+    @DisplayName("maintenanceAlertMessage Flow")
+    inner class MaintenanceAlertMessageFlow {
+
+        @Test
+        @DisplayName("is null when no active vehicle")
+        fun nullWhenNoVehicle() = runTest {
+            val vm = createViewModel()
+
+            vm.maintenanceAlertMessage.test {
+                assertNull(awaitItem())
+            }
+        }
+
+        @Test
+        @DisplayName("is null when no schedules are overdue")
+        fun nullWhenNoOverdue() = runTest {
+            val vehicle = testVehicle()
+            fakeVehicleDao.vehicles["v-1"] = vehicle
+            fakeVehicleDao.updateFlow()
+            activeVehicleRepository.setActiveVehicle("v-1")
+
+            val schedule = MaintenanceSchedule(
+                id = "s1",
+                vehicleId = "v-1",
+                name = "Oil Change",
+                intervalKm = 10000,
+                lastServiceKm = 80000.0,
+                lastServiceDate = 0L,
+                isCustom = false,
+            )
+            fakeMaintenanceDao.schedules["s1"] = schedule
+            fakeMaintenanceDao.updateFlow()
+
+            val vm = createViewModel()
+
+            vm.maintenanceAlertMessage.test {
+                assertNull(awaitItem())
+            }
+        }
+
+        @Test
+        @DisplayName("shows alert when schedule at 95 percent or more")
+        fun alertWhenOverdue() = runTest {
+            val vehicle = testVehicle(odometerKm = 89500.0)
+            fakeVehicleDao.vehicles["v-1"] = vehicle
+            fakeVehicleDao.updateFlow()
+            activeVehicleRepository.setActiveVehicle("v-1")
+
+            val schedule = MaintenanceSchedule(
+                id = "s1",
+                vehicleId = "v-1",
+                name = "Oil Change",
+                intervalKm = 10000,
+                lastServiceKm = 80000.0,
+                lastServiceDate = 0L,
+                isCustom = false,
+            )
+            fakeMaintenanceDao.schedules["s1"] = schedule
+            fakeMaintenanceDao.updateFlow()
+
+            val vm = createViewModel()
+
+            vm.maintenanceAlertMessage.test {
+                val message = awaitItem()
+                assertNotNull(message)
+                assertEquals("Oil Change", message)
+            }
+        }
+    }
+}
+
+private class FakeMainMaintenanceDao : MaintenanceDao {
+    val schedules = mutableMapOf<String, MaintenanceSchedule>()
+    private val scheduleFlow = MutableStateFlow<List<MaintenanceSchedule>>(emptyList())
+
+    fun updateFlow() {
+        scheduleFlow.value = schedules.values.toList()
+    }
+
+    override fun getSchedulesForVehicle(vehicleId: String): Flow<List<MaintenanceSchedule>> =
+        scheduleFlow.map { list -> list.filter { it.vehicleId == vehicleId } }
+
+    override fun getSchedule(scheduleId: String): Flow<MaintenanceSchedule?> =
+        scheduleFlow.map { list -> list.find { it.id == scheduleId } }
+
+    override suspend fun upsertSchedule(schedule: MaintenanceSchedule) {
+        schedules[schedule.id] = schedule
+        updateFlow()
+    }
+
+    override suspend fun upsertSchedules(schedules: List<MaintenanceSchedule>) {
+        schedules.forEach { this.schedules[it.id] = it }
+        updateFlow()
+    }
+
+    override suspend fun deleteSchedule(schedule: MaintenanceSchedule) {
+        schedules.remove(schedule.id)
+        updateFlow()
+    }
+
+    override suspend fun deleteScheduleById(scheduleId: String) {
+        schedules.remove(scheduleId)
+        updateFlow()
+    }
+
+    override fun getRecordsForSchedule(scheduleId: String): Flow<List<MaintenanceRecord>> =
+        scheduleFlow.map { emptyList() }
+
+    override fun getRecordsForVehicle(vehicleId: String): Flow<List<MaintenanceRecord>> =
+        scheduleFlow.map { emptyList() }
+
+    override fun getRecord(recordId: String): Flow<MaintenanceRecord?> =
+        scheduleFlow.map { null }
+
+    override suspend fun upsertRecord(record: MaintenanceRecord) {}
+
+    override suspend fun upsertRecords(records: List<MaintenanceRecord>) {}
+
+    override suspend fun deleteRecord(record: MaintenanceRecord) {}
+
+    override suspend fun deleteRecordById(recordId: String) {}
 }
 
 private class FakeMainVehicleDao : VehicleDao {

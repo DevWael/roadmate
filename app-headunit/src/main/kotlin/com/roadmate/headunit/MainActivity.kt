@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -17,8 +16,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.roadmate.core.model.UiState
 import com.roadmate.core.ui.theme.RoadMateTheme
+import com.roadmate.headunit.ui.ContextAwareLayout
 import com.roadmate.headunit.ui.WelcomeContent
-import com.roadmate.headunit.ui.parked.DashboardShell
 import com.roadmate.headunit.ui.parked.VehicleSetupContent
 import com.roadmate.headunit.ui.parked.VehicleSwitcherDialog
 import com.roadmate.headunit.viewmodel.VehicleSetupViewModel
@@ -56,6 +55,10 @@ fun RoadMateMainScreen() {
     val hasVehicles = vehicles.isNotEmpty()
 
     val hasActiveVehicle = activeVehicleId != null && currentVehicle != null
+
+    val alertMessage by mainViewModel.maintenanceAlertMessage.collectAsStateWithLifecycle()
+    val drivingState by mainViewModel.drivingState.collectAsStateWithLifecycle()
+    val gpsState by mainViewModel.gpsState.collectAsStateWithLifecycle()
 
     if (!isReady) return
 
@@ -111,9 +114,12 @@ fun RoadMateMainScreen() {
             )
         }
         else -> {
-            DashboardShell(
+            ContextAwareLayout(
+                drivingState = drivingState,
+                gpsState = gpsState,
                 vehicle = currentVehicle,
                 trips = trips,
+                alertMessage = alertMessage,
                 onSwitchVehicle = { showSwitcher = true },
             )
         }
