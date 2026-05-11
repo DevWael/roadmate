@@ -38,11 +38,19 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.hilt.navigation.compose)
 
+    // Compose
+    implementation(libs.androidx.compose.material.icons.extended)
+
+    // WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
+
     // Logging
     implementation(libs.timber)
 
     // Testing
     testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.turbine)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.core)
