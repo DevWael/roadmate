@@ -10,6 +10,7 @@ import com.roadmate.core.state.DrivingStateManager
 import com.roadmate.core.state.TripDetector
 import com.roadmate.core.state.TripEndEvent
 import com.roadmate.core.util.Clock
+import com.roadmate.core.util.CrashRecoveryJournal
 import com.roadmate.core.util.HaversineCalculator
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -37,6 +38,7 @@ class TripRecorder(
     private val tripEndEventFlow: SharedFlow<TripEndEvent>,
     private val tripRepository: TripRepository,
     private val vehicleRepository: VehicleRepository,
+    private val journal: CrashRecoveryJournal,
     private val clock: Clock,
     private val scope: CoroutineScope,
     private val ioDispatcher: CoroutineDispatcher,
@@ -47,12 +49,14 @@ class TripRecorder(
         tripDetector: TripDetector,
         tripRepository: TripRepository,
         vehicleRepository: VehicleRepository,
+        journal: CrashRecoveryJournal,
     ) : this(
         locationUpdates = gpsTracker.locations,
         drivingStateFlow = drivingStateManager.drivingState,
         tripEndEventFlow = tripDetector.tripEndEvents,
         tripRepository = tripRepository,
         vehicleRepository = vehicleRepository,
+        journal = journal,
         clock = Clock.SYSTEM,
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
         ioDispatcher = Dispatchers.IO,
@@ -72,9 +76,11 @@ class TripRecorder(
     @Volatile private var tripLoaded = false
 
     private var flushJob: Job? = null
+    private var journalJob: Job? = null
 
     companion object {
         private const val FLUSH_INTERVAL_MS = 10_000L
+        private const val JOURNAL_INTERVAL_MS = 30_000L
     }
 
     init {
@@ -111,6 +117,8 @@ class TripRecorder(
     private fun onTripIdle() {
         flushJob?.cancel()
         flushJob = null
+        journalJob?.cancel()
+        journalJob = null
     }
 
     private suspend fun onLocationUpdate(update: LocationUpdate) {
@@ -137,10 +145,17 @@ class TripRecorder(
 
     private fun startFlushTimer() {
         flushJob?.cancel()
+        journalJob?.cancel()
         flushJob = scope.launch {
             while (isActive) {
                 delay(FLUSH_INTERVAL_MS)
                 flushBuffer()
+            }
+        }
+        journalJob = scope.launch {
+            while (isActive) {
+                delay(JOURNAL_INTERVAL_MS)
+                writeJournal()
             }
         }
     }
@@ -249,6 +264,61 @@ class TripRecorder(
             }
 
             Timber.d("TripRecorder: finalized trip ${event.tripId}, distance=${accumulatedDistanceKm}km")
+            currentTripId = null
+            lastValidLocation = null
+        }
+    }
+
+    private suspend fun writeJournal() {
+        mutex.withLock {
+            val tripId = currentTripId ?: return
+            val now = clock.now()
+            journal.write(
+                tripId = tripId,
+                vehicleId = currentVehicleId ?: return,
+                distanceKm = accumulatedDistanceKm,
+                durationMs = maxOf(0L, now - tripStartTime),
+                odometerKm = startOdometerKm + accumulatedDistanceKm,
+                lastFlushTimestamp = now,
+            )
+        }
+    }
+
+    suspend fun gracefulShutdown() {
+        flushJob?.cancel()
+        flushJob = null
+        journalJob?.cancel()
+        journalJob = null
+        mutex.withLock {
+            val tripId = currentTripId ?: return
+            ensureTripLoaded()
+            if (!tripLoaded) {
+                Timber.w("TripRecorder: trip $tripId not loaded, cannot finalize gracefully")
+                return
+            }
+            val points = drainBuffer()
+            val now = clock.now()
+            // AC #6: update journal before finalizing
+            journal.write(
+                tripId = tripId,
+                vehicleId = currentVehicleId ?: "",
+                distanceKm = accumulatedDistanceKm,
+                durationMs = maxOf(0L, now - tripStartTime),
+                odometerKm = startOdometerKm + accumulatedDistanceKm,
+                lastFlushTimestamp = now,
+            )
+            val trip = buildFinalizedTrip(now)
+            withContext(ioDispatcher) {
+                if (points.isNotEmpty()) {
+                    tripRepository.flushTripPointsAndTrip(points, trip)
+                        .onFailure { Timber.e(it, "TripRecorder: graceful shutdown flush failed") }
+                } else {
+                    tripRepository.saveTrip(trip)
+                        .onFailure { Timber.e(it, "TripRecorder: graceful shutdown save failed") }
+                }
+            }
+            journal.clear()
+            Timber.i("TripRecorder: graceful shutdown, finalized trip $tripId as COMPLETED")
             currentTripId = null
             lastValidLocation = null
         }

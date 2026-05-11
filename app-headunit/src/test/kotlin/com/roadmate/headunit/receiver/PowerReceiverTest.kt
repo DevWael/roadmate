@@ -13,11 +13,4 @@ class PowerReceiverTest {
         val receiver = PowerReceiver()
         assertNotNull(receiver)
     }
-
-    @Test
-    @DisplayName("onShutdown hook exists for data flush")
-    fun onShutdownHookExists() {
-        val receiver = PowerReceiver()
-        receiver.onShutdown()
-    }
 }

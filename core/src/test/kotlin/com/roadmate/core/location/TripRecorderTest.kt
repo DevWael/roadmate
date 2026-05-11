@@ -11,7 +11,9 @@ import com.roadmate.core.repository.VehicleRepository
 import com.roadmate.core.state.DrivingStateManager
 import com.roadmate.core.state.TripEndEvent
 import com.roadmate.core.util.Clock
+import com.roadmate.core.util.CrashRecoveryJournal
 import com.roadmate.core.util.HaversineCalculator
+import com.roadmate.core.util.JournalEntry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -46,6 +48,7 @@ class TripRecorderTest {
     private lateinit var fakeLocations: MutableSharedFlow<LocationUpdate>
     private lateinit var fakeTripEndEvents: MutableSharedFlow<TripEndEvent>
     private lateinit var fakeClock: FakeClock
+    private lateinit var fakeJournal: FakeJournalForRecorder
     private lateinit var fakeVehicleDao: FakeVehicleDaoForRecorder
     private var recorderJob: Job? = null
 
@@ -59,6 +62,7 @@ class TripRecorderTest {
         fakeLocations = MutableSharedFlow(replay = 0, extraBufferCapacity = 64)
         fakeTripEndEvents = MutableSharedFlow(extraBufferCapacity = 1)
         fakeClock = FakeClock(1000L)
+        fakeJournal = FakeJournalForRecorder()
     }
 
     @AfterEach
@@ -77,6 +81,7 @@ class TripRecorderTest {
             tripEndEventFlow = fakeTripEndEvents,
             tripRepository = tripRepository,
             vehicleRepository = vehicleRepository,
+            journal = fakeJournal,
             clock = fakeClock,
             scope = scope,
             ioDispatcher = UnconfinedTestDispatcher(),
@@ -526,4 +531,42 @@ private class FakeVehicleDaoForRecorder : VehicleDao {
 private class FakeClock(private var time: Long) : Clock {
     override fun now(): Long = time
     fun setTime(t: Long) { time = t }
+}
+
+private class FakeJournalForRecorder : CrashRecoveryJournal(
+    object : androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences> {
+        private val prefs = MutableStateFlow<androidx.datastore.preferences.core.Preferences>(
+            androidx.datastore.preferences.core.emptyPreferences()
+        )
+        override val data = prefs
+        override suspend fun updateData(
+            transform: suspend (t: androidx.datastore.preferences.core.Preferences) ->
+            androidx.datastore.preferences.core.Preferences,
+        ): androidx.datastore.preferences.core.Preferences {
+            val new = transform(prefs.value)
+            prefs.value = new
+            return new
+        }
+    }
+) {
+    private var entry: JournalEntry? = null
+
+    override suspend fun write(
+        tripId: String,
+        vehicleId: String,
+        distanceKm: Double,
+        durationMs: Long,
+        odometerKm: Double,
+        lastFlushTimestamp: Long,
+    ) {
+        entry = JournalEntry(tripId, vehicleId, distanceKm, durationMs, odometerKm, lastFlushTimestamp, "ACTIVE")
+    }
+
+    override suspend fun read(): JournalEntry? = entry
+
+    override suspend fun hasActiveTrip(): Boolean = entry != null
+
+    override suspend fun clear() {
+        entry = null
+    }
 }

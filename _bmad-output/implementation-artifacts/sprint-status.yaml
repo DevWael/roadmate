@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-08T22:57:00+03:00"
-last_updated: "2026-05-11T20:45:00+03:00"
+last_updated: "2026-05-11T21:16:00+03:00"
 project: roadmate
 project_key: NOKEY
 tracking_system: file-system
@@ -58,7 +58,7 @@ development_status:
   2-1-gps-tracker-and-location-pipeline: done
   2-2-trip-detection-state-machine: done
   2-3-trip-recording-and-trippoint-persistence: done
-  2-4-crash-recovery-journal-and-power-loss-protection: ready-for-dev
+  2-4-crash-recovery-journal-and-power-loss-protection: done
   2-5-odometer-auto-update-and-trip-list: ready-for-dev
   2-6-drivinghud-and-contextawarelayout: ready-for-dev
   2-7-gps-gap-handling-and-edge-cases: ready-for-dev
