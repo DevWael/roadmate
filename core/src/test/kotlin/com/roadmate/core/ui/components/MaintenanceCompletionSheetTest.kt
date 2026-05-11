@@ -29,4 +29,5 @@ class MaintenanceCompletionSheetTest {
             val result = formatDateForDisplay(timestamp)
             assertTrue(result.contains("2023"))
         }
+    }
 }

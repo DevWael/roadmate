@@ -85,3 +85,9 @@
 ## Deferred from: code review of story 3-1 (2026-05-11)
 
 - **No `@Stable` annotation on `GaugeArcVariant` enum** — Pre-existing pattern across project enums. May cause unnecessary recompositions in Compose. Consider a project-wide pass to annotate all enums used in composable parameters.
+
+## Deferred from: code review of story 3-2 (2026-05-12)
+
+- **Three duplicate FakeMaintenanceDao implementations** — `MaintenanceRepositoryTest`, `VehicleSetupViewModelTest`, and `MaintenanceCompletionViewModelTest` each copy the full abstract DAO fake. Any new abstract method requires updating all three. Extract a shared `TestMaintenanceDao` into a `:core-test` or `testFixtures` module.
+- **Undo may silently fail after process death** — `cachedSchedule` and `_previousScheduleValues` are ViewModel-memory-only. If process death occurs within the 4-second Snackbar window, the Undo button callback fires on a fresh ViewModel with null fields and silently no-ops. Practically unlikely but architecturally impure.
+

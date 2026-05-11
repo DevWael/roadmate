@@ -398,6 +398,10 @@ private class FakeMaintenanceDao : MaintenanceDao() {
     override suspend fun deleteRecordById(recordId: String) {
         records.removeIf { it.id == recordId }
     }
+
+    override suspend fun deleteRecordsByScheduleId(scheduleId: String) {
+        records.removeIf { it.scheduleId == scheduleId }
+    }
 }
 
 private class FakeDataStore : DataStore<Preferences> {

@@ -61,6 +61,9 @@ class MaintenanceRepository @Inject constructor(
     suspend fun deleteRecordById(recordId: String): Result<Unit> =
         runCatching { maintenanceDao.deleteRecordById(recordId) }
 
+    suspend fun deleteScheduleWithRecords(scheduleId: String): Result<Unit> =
+        runCatching { maintenanceDao.deleteScheduleWithRecords(scheduleId) }
+
     // --- Transactional operations ---
 
     suspend fun completeMaintenance(record: MaintenanceRecord, schedule: MaintenanceSchedule): Result<Unit> =

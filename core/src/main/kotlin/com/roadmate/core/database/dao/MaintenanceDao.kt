@@ -55,6 +55,9 @@ abstract class MaintenanceDao {
     @Query("DELETE FROM maintenance_records WHERE id = :recordId")
     abstract suspend fun deleteRecordById(recordId: String)
 
+    @Query("DELETE FROM maintenance_records WHERE schedule_id = :scheduleId")
+    abstract suspend fun deleteRecordsByScheduleId(scheduleId: String)
+
     // --- Transactional operations ---
 
     @Transaction
@@ -67,5 +70,11 @@ abstract class MaintenanceDao {
     open suspend fun undoCompletion(recordId: String, previousSchedule: MaintenanceSchedule) {
         deleteRecordById(recordId)
         upsertSchedule(previousSchedule)
+    }
+
+    @Transaction
+    open suspend fun deleteScheduleWithRecords(scheduleId: String) {
+        deleteRecordsByScheduleId(scheduleId)
+        deleteScheduleById(scheduleId)
     }
 }

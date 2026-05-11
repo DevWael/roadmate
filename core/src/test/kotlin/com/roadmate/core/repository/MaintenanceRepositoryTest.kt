@@ -225,6 +225,35 @@ class MaintenanceRepositoryTest {
         assertTrue(result.isFailure)
     }
 
+    @Test
+    fun `deleteScheduleWithRecords deletes schedule and all its records`() = runTest {
+        val schedule = createTestSchedule(id = "s-1", vehicleId = "v-1")
+        fakeDao.schedules["s-1"] = schedule
+        fakeDao.updateScheduleFlow()
+
+        val r1 = createTestRecord(id = "r-1", scheduleId = "s-1", vehicleId = "v-1")
+        val r2 = createTestRecord(id = "r-2", scheduleId = "s-1", vehicleId = "v-1")
+        val r3 = createTestRecord(id = "r-3", scheduleId = "s-2", vehicleId = "v-1")
+        fakeDao.records["r-1"] = r1
+        fakeDao.records["r-2"] = r2
+        fakeDao.records["r-3"] = r3
+        fakeDao.updateRecordFlow()
+
+        val result = repository.deleteScheduleWithRecords("s-1")
+        assertTrue(result.isSuccess)
+        assertNull(fakeDao.schedules["s-1"])
+        assertNull(fakeDao.records["r-1"])
+        assertNull(fakeDao.records["r-2"])
+        assertEquals(r3, fakeDao.records["r-3"])
+    }
+
+    @Test
+    fun `deleteScheduleWithRecords returns failure when dao throws`() = runTest {
+        fakeDao.shouldThrow = true
+        val result = repository.deleteScheduleWithRecords("s-1")
+        assertTrue(result.isFailure)
+    }
+
     private fun createTestSchedule(
         id: String = "sched-1",
         vehicleId: String = "vehicle-1",
@@ -331,6 +360,13 @@ private class FakeMaintenanceDao : MaintenanceDao() {
     override suspend fun deleteRecordById(recordId: String) {
         if (shouldThrow) throw RuntimeException("Test error")
         records.remove(recordId)
+        updateRecordFlow()
+    }
+
+    override suspend fun deleteRecordsByScheduleId(scheduleId: String) {
+        if (shouldThrow) throw RuntimeException("Test error")
+        val toRemove = records.values.filter { it.scheduleId == scheduleId }.map { it.id }
+        toRemove.forEach { records.remove(it) }
         updateRecordFlow()
     }
 }

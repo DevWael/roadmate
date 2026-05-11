@@ -356,6 +356,8 @@ private class FakeMainMaintenanceDao : MaintenanceDao() {
     override suspend fun deleteRecord(record: MaintenanceRecord) {}
 
     override suspend fun deleteRecordById(recordId: String) {}
+
+    override suspend fun deleteRecordsByScheduleId(scheduleId: String) {}
 }
 
 private class FakeMainVehicleDao : VehicleDao {

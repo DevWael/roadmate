@@ -286,4 +286,11 @@ private class CompletionFakeMaintenanceDao : MaintenanceDao() {
         records.remove(recordId)
         updateRecordFlow()
     }
+
+    override suspend fun deleteRecordsByScheduleId(scheduleId: String) {
+        if (shouldThrow) throw RuntimeException("Test error")
+        val toRemove = records.values.filter { it.scheduleId == scheduleId }.map { it.id }
+        toRemove.forEach { records.remove(it) }
+        updateRecordFlow()
+    }
 }
