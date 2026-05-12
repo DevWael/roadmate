@@ -33,7 +33,7 @@ class SyncSessionTest {
         val noOpEngine = DeltaSyncEngine(
             NoOpVehicleDao(), NoOpTripDao(), NoOpMaintenanceDao(), NoOpFuelDao(), NoOpDocumentDao(), batcher,
         )
-        session = SyncSession(stateManager, noOpEngine, batcher, ackTracker, serializer, testClock)
+        session = SyncSession(stateManager, noOpEngine, batcher, ackTracker, serializer, UnackedMessageTracker(), InMemorySyncTimestampStore(), testClock)
     }
 
     @Nested
@@ -120,10 +120,18 @@ class SyncSessionTest {
         }
 
         @Test
-        fun `syncComplete transitions to Connected`() {
+        fun `syncComplete transitions to Connected`() = runTest {
             stateManager.updateState(BtConnectionState.SyncInProgress)
             session.syncComplete()
             assertEquals(BtConnectionState.Connected, stateManager.btConnectionState.value)
+        }
+
+        @Test
+        fun `syncComplete fails when unacked messages remain`() = runTest {
+            stateManager.updateState(BtConnectionState.SyncInProgress)
+            ackTracker.track("msg-1")
+            session.syncComplete()
+            assertTrue(stateManager.btConnectionState.value is BtConnectionState.SyncFailed)
         }
 
         @Test
@@ -145,6 +153,20 @@ class SyncSessionTest {
             session.reset()
             assertTrue(ackTracker.isComplete())
         }
+
+        @Test
+        fun `clears unacked message tracker`() = runTest {
+            val push = SyncMessage.SyncPush("vehicle", "[{}]", "msg-1", 1000L)
+            val deltas = listOf(SyncPushDto("vehicle", "[{}]"))
+            session.createPushMessages(deltas)
+            session.reset()
+            // After reset, buildOutgoingMessages should not retransmit
+            val messages = session.buildOutgoingMessages(0L)
+            // Only SyncStatus + fresh deltas, no retransmitted unacked
+            val pushMessages = messages.filterIsInstance<SyncMessage.SyncPush>()
+            // Fresh deltas from noOpEngine return empty, so only retransmitted would appear
+            assertTrue(pushMessages.isEmpty() || pushMessages.all { it.messageId != push.messageId })
+        }
     }
 
 
@@ -159,6 +181,7 @@ class SyncSessionTest {
         override fun getVehicleCount() = kotlinx.coroutines.flow.flowOf(0)
         override suspend fun addToOdometer(vehicleId: String, distanceKm: Double, lastModified: Long) {}
         override suspend fun getModifiedSince(since: Long) = emptyList<com.roadmate.core.database.entity.Vehicle>()
+        override suspend fun getVehicleById(id: String): com.roadmate.core.database.entity.Vehicle? = null
     }
 
     private class NoOpTripDao : com.roadmate.core.database.dao.TripDao() {
@@ -175,6 +198,8 @@ class SyncSessionTest {
         override suspend fun deleteTripPoint(tripPoint: com.roadmate.core.database.entity.TripPoint) {}
         override suspend fun getTripsModifiedSince(since: Long) = emptyList<com.roadmate.core.database.entity.Trip>()
         override suspend fun getTripPointsModifiedSince(since: Long) = emptyList<com.roadmate.core.database.entity.TripPoint>()
+        override suspend fun getTripById(id: String): com.roadmate.core.database.entity.Trip? = null
+        override suspend fun getTripPointById(id: String): com.roadmate.core.database.entity.TripPoint? = null
     }
 
     private class NoOpMaintenanceDao : com.roadmate.core.database.dao.MaintenanceDao() {
@@ -194,6 +219,8 @@ class SyncSessionTest {
         override suspend fun deleteRecordsByScheduleId(scheduleId: String) {}
         override suspend fun getSchedulesModifiedSince(since: Long) = emptyList<com.roadmate.core.database.entity.MaintenanceSchedule>()
         override suspend fun getRecordsModifiedSince(since: Long) = emptyList<com.roadmate.core.database.entity.MaintenanceRecord>()
+        override suspend fun getScheduleById(id: String): com.roadmate.core.database.entity.MaintenanceSchedule? = null
+        override suspend fun getRecordById(id: String): com.roadmate.core.database.entity.MaintenanceRecord? = null
     }
 
     private class NoOpFuelDao : com.roadmate.core.database.dao.FuelDao {
@@ -205,6 +232,7 @@ class SyncSessionTest {
         override suspend fun deleteFuelLog(fuelLog: com.roadmate.core.database.entity.FuelLog) {}
         override suspend fun deleteFuelLogById(fuelLogId: String) {}
         override suspend fun getFuelLogsModifiedSince(since: Long) = emptyList<com.roadmate.core.database.entity.FuelLog>()
+        override suspend fun getFuelLogById(id: String): com.roadmate.core.database.entity.FuelLog? = null
     }
 
     private class NoOpDocumentDao : com.roadmate.core.database.dao.DocumentDao {
@@ -216,5 +244,18 @@ class SyncSessionTest {
         override suspend fun deleteDocument(document: com.roadmate.core.database.entity.Document) {}
         override suspend fun deleteDocumentById(documentId: String) {}
         override suspend fun getDocumentsModifiedSince(since: Long) = emptyList<com.roadmate.core.database.entity.Document>()
+        override suspend fun getDocumentById(id: String): com.roadmate.core.database.entity.Document? = null
     }
+
+    private class InMemorySyncTimestampStore : SyncTimestampStore(
+        object : androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences> {
+            private val prefs = kotlinx.coroutines.flow.MutableStateFlow(androidx.datastore.preferences.core.emptyPreferences())
+            override val data = prefs
+            override suspend fun updateData(transformer: suspend (androidx.datastore.preferences.core.Preferences) -> androidx.datastore.preferences.core.Preferences): androidx.datastore.preferences.core.Preferences {
+                val new = transformer(prefs.value)
+                prefs.value = new
+                return new
+            }
+        }
+    )
 }

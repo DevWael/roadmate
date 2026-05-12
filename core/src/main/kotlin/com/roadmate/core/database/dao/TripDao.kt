@@ -56,4 +56,10 @@ abstract class TripDao {
 
     @Query("SELECT * FROM trip_points WHERE last_modified > :since")
     abstract suspend fun getTripPointsModifiedSince(since: Long): List<TripPoint>
+
+    @Query("SELECT * FROM trips WHERE id = :id")
+    abstract suspend fun getTripById(id: String): Trip?
+
+    @Query("SELECT * FROM trip_points WHERE id = :id")
+    abstract suspend fun getTripPointById(id: String): TripPoint?
 }

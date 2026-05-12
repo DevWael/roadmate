@@ -83,4 +83,10 @@ abstract class MaintenanceDao {
 
     @Query("SELECT * FROM maintenance_records WHERE last_modified > :since")
     abstract suspend fun getRecordsModifiedSince(since: Long): List<MaintenanceRecord>
+
+    @Query("SELECT * FROM maintenance_schedules WHERE id = :id")
+    abstract suspend fun getScheduleById(id: String): MaintenanceSchedule?
+
+    @Query("SELECT * FROM maintenance_records WHERE id = :id")
+    abstract suspend fun getRecordById(id: String): MaintenanceRecord?
 }

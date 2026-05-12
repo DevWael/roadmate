@@ -113,3 +113,10 @@
 
 - **No bidirectional sync — only outgoing push, no incoming receive/upsert logic** — `awaitProtocolCompletion()` only sends outgoing PUSH messages and reads ACKs. There is no logic to receive incoming PUSH messages from the remote side, upsert them locally, or send ACKs back. Scope for Story 4-3 (Conflict Resolution) and Story 4-4 (Sync Triggers).
 - **`lastSyncTimestamp` never persisted after sync completion (AC #6)** — `syncComplete()` transitions state to `Connected` but never writes the new sync timestamp to DataStore or any persistent storage. Next sync will use `0L` again. Requires a dedicated persistence mechanism.
+
+## Deferred from: code review of story 4-3 (2026-05-12)
+
+- **ConflictResolver is a copy-paste God Object** — Seven `when` branches contain near-identical `getById → compare timestamp → upsert-or-skip` logic. Extract into a generic `resolveEntity<T>()` function parameterized by DAO lambdas. Architectural improvement, no correctness issue.
+- **Per-entity timestamps implemented but unused** — `SyncTimestampStore.setEntityTimestamp/getEntityTimestamp` are implemented and tested but `DeltaSyncEngine.queryDeltas()` uses only the global `lastSyncTimestamp`. Dead code today, presumably intended for future per-entity-type delta queries.
+- **ConflictResolver not integrated into SyncSession** — ConflictResolver exists as standalone component with tests, but SyncSession has no incoming PUSH handler wiring. Likely Story 4-4 scope for bidirectional sync.
+- **UnackedMessageTracker.drainUnacked() non-atomic drain** — `values.toList()` followed by `clear()` on ConcurrentHashMap is technically non-atomic. Low risk since all callers are on single coroutine context.

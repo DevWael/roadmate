@@ -40,4 +40,7 @@ interface FuelDao {
 
     @Query("SELECT * FROM fuel_logs WHERE last_modified > :since")
     suspend fun getFuelLogsModifiedSince(since: Long): List<FuelLog>
+
+    @Query("SELECT * FROM fuel_logs WHERE id = :id")
+    suspend fun getFuelLogById(id: String): FuelLog?
 }

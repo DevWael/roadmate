@@ -323,6 +323,9 @@ private class FakeTripDaoForRecovery : TripDao() {
 
     override suspend fun getTripPointsModifiedSince(since: Long): List<TripPoint> =
         emptyList()
+
+    override suspend fun getTripById(id: String): Trip? = trips[id]
+    override suspend fun getTripPointById(id: String): TripPoint? = null
 }
 
 private class FakeVehicleDaoForRecovery : VehicleDao {
@@ -369,4 +372,6 @@ private class FakeVehicleDaoForRecovery : VehicleDao {
 
     override suspend fun getModifiedSince(since: Long): List<Vehicle> =
         listOfNotNull(vehicle).filter { it.lastModified > since }
+
+    override suspend fun getVehicleById(id: String): Vehicle? = vehicle?.takeIf { it.id == id }
 }

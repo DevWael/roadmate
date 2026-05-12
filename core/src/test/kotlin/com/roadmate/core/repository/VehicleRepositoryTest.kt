@@ -217,4 +217,6 @@ private class FakeVehicleDao : VehicleDao {
 
     override suspend fun getModifiedSince(since: Long): List<Vehicle> =
         vehicles.values.filter { it.lastModified > since }
+
+    override suspend fun getVehicleById(id: String): Vehicle? = null
 }

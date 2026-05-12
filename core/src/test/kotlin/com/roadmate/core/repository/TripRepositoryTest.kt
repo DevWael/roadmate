@@ -251,4 +251,8 @@ private class FakeTripDao : TripDao() {
 
     override suspend fun getTripPointsModifiedSince(since: Long): List<TripPoint> =
         tripPoints.values.filter { it.lastModified > since }
+
+    override suspend fun getTripById(id: String): Trip? = null
+
+    override suspend fun getTripPointById(id: String): TripPoint? = null
 }

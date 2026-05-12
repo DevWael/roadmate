@@ -16,20 +16,31 @@ class SyncSession @Inject constructor(
     private val batcher: SyncBatcher,
     private val ackTracker: AckTracker,
     private val messageSerializer: MessageSerializer,
+    private val unackedTracker: UnackedMessageTracker,
+    private val timestampStore: SyncTimestampStore,
     private val clock: Clock,
 ) {
 
-    /**
-     * In-memory last sync timestamp. Updated after each successful sync.
-     * TODO(Story 4-4): Persist to DataStore for survival across process death.
-     */
     @Volatile
     var lastSyncTimestamp: Long = 0L
         private set
 
+    suspend fun init() {
+        lastSyncTimestamp = timestampStore.getLastSyncTimestamp()
+    }
+
     suspend fun buildOutgoingMessages(lastSyncTs: Long = lastSyncTimestamp): List<SyncMessage> {
         val messages = mutableListOf<SyncMessage>()
         messages.add(createSyncStatus("local", clock.now(), lastSyncTs))
+
+        val unacked = unackedTracker.drainUnacked()
+        if (unacked.isNotEmpty()) {
+            messages.addAll(unacked)
+            for (push in unacked) {
+                ackTracker.track(push.messageId)
+            }
+        }
+
         val deltas = deltaEngine.queryDeltas(lastSyncTs)
         val pushMessages = createPushMessages(deltas)
         messages.addAll(pushMessages)
@@ -45,21 +56,26 @@ class SyncSession @Inject constructor(
     }
 
     suspend fun createPushMessages(deltas: List<SyncPushDto>): List<SyncMessage.SyncPush> {
-        ackTracker.reset()
         return deltas.map { delta ->
             val messageId = UUID.randomUUID().toString()
             ackTracker.track(messageId)
-            SyncMessage.SyncPush(
+            val push = SyncMessage.SyncPush(
                 entityType = delta.entityType,
                 data = delta.data,
                 messageId = messageId,
                 timestamp = clock.now(),
             )
+            unackedTracker.trackPending(push)
+            push
         }
     }
 
     fun handleAck(ack: SyncMessage.SyncAck): Boolean {
-        return ackTracker.acknowledge(ack.messageId)
+        val ackTracked = ackTracker.acknowledge(ack.messageId)
+        if (ackTracked) {
+            unackedTracker.acknowledge(ack.messageId)
+        }
+        return ackTracked
     }
 
     fun isSyncComplete(): Boolean = ackTracker.isComplete()
@@ -68,8 +84,14 @@ class SyncSession @Inject constructor(
         stateManager.updateState(BtConnectionState.SyncInProgress)
     }
 
-    fun syncComplete() {
-        lastSyncTimestamp = clock.now()
+    suspend fun syncComplete() {
+        if (!ackTracker.isComplete() || !unackedTracker.isComplete()) {
+            syncFailed("Cannot complete sync: unacked messages remain")
+            return
+        }
+        val now = clock.now()
+        lastSyncTimestamp = now
+        timestampStore.setLastSyncTimestamp(now)
         stateManager.updateState(BtConnectionState.Connected)
     }
 
@@ -81,5 +103,6 @@ class SyncSession @Inject constructor(
 
     fun reset() {
         ackTracker.reset()
+        unackedTracker.drainUnacked()
     }
 }

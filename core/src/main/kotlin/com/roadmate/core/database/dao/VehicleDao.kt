@@ -43,4 +43,7 @@ interface VehicleDao {
 
     @Query("SELECT * FROM vehicles WHERE last_modified > :since")
     suspend fun getModifiedSince(since: Long): List<Vehicle>
+
+    @Query("SELECT * FROM vehicles WHERE id = :id")
+    suspend fun getVehicleById(id: String): Vehicle?
 }

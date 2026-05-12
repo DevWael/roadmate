@@ -375,4 +375,8 @@ private class FakeMaintenanceDao : MaintenanceDao() {
 
     override suspend fun getRecordsModifiedSince(since: Long): List<MaintenanceRecord> =
         records.values.filter { it.lastModified > since }
+
+    override suspend fun getScheduleById(id: String): MaintenanceSchedule? = null
+
+    override suspend fun getRecordById(id: String): MaintenanceRecord? = null
 }

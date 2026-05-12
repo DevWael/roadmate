@@ -712,6 +712,10 @@ private class FakeTripDaoForRecorder : com.roadmate.core.database.dao.TripDao() 
 
     override suspend fun getTripPointsModifiedSince(since: Long): List<TripPoint> =
         tripPoints.values.filter { it.lastModified > since }
+
+    override suspend fun getTripById(id: String): Trip? = null
+
+    override suspend fun getTripPointById(id: String): TripPoint? = null
 }
 
 private class FakeVehicleDaoForRecorder : VehicleDao {
@@ -767,6 +771,8 @@ private class FakeVehicleDaoForRecorder : VehicleDao {
 
     override suspend fun getModifiedSince(since: Long): List<Vehicle> =
         vehicles.values.filter { it.lastModified > since }
+
+    override suspend fun getVehicleById(id: String): Vehicle? = null
 }
 
 private class FakeClock(private var time: Long) : Clock {

@@ -166,6 +166,7 @@ class DeltaSyncEngineTest {
                     EngineType.INLINE_4, 1.6, FuelType.GASOLINE, "ABC-123", null,
                     85000.0, OdometerUnit.KM, 9.5, 6.8, 600L)
             ) else emptyList()
+        override suspend fun getVehicleById(id: String): Vehicle? = null
     }
 
     private class StubTripDao : TripDao() {
@@ -189,6 +190,8 @@ class DeltaSyncEngineTest {
             if (since < 750L) listOf(
                 TripPoint("tp-1", "t-1", 30.0444, 31.2357, 60.0, 75.0, 5.0f, 1000L, false, 750L)
             ) else emptyList()
+        override suspend fun getTripById(id: String): Trip? = null
+        override suspend fun getTripPointById(id: String): TripPoint? = null
     }
 
     private class StubMaintenanceDao : MaintenanceDao() {
@@ -214,6 +217,8 @@ class DeltaSyncEngineTest {
             if (since < 850L) listOf(
                 MaintenanceRecord("mr-1", "ms-1", "v-1", 1000L, 85000.0, 250.0, "AutoService", "Good", 850L)
             ) else emptyList()
+        override suspend fun getScheduleById(id: String): MaintenanceSchedule? = null
+        override suspend fun getRecordById(id: String): MaintenanceRecord? = null
     }
 
     private class StubFuelDao : FuelDao {
@@ -228,6 +233,7 @@ class DeltaSyncEngineTest {
             if (since < 900L) listOf(
                 FuelLog("f-1", "v-1", 1000L, 86000.0, 45.0, 12.75, 573.75, true, "Total", 900L)
             ) else emptyList()
+        override suspend fun getFuelLogById(id: String): FuelLog? = null
     }
 
     private class StubDocumentDao : DocumentDao {
@@ -238,9 +244,10 @@ class DeltaSyncEngineTest {
         override suspend fun upsertDocuments(documents: List<Document>) {}
         override suspend fun deleteDocument(document: Document) {}
         override suspend fun deleteDocumentById(documentId: String) {}
-        override suspend fun getDocumentsModifiedSince(since: Long): List<Document> =
-            if (since < 950L) listOf(
-                Document("d-1", "v-1", DocumentType.INSURANCE, "Insurance 2026", 1700000000000L, 30, null, 950L)
-            ) else emptyList()
-    }
+            override suspend fun getDocumentsModifiedSince(since: Long): List<Document> =
+                if (since < 950L) listOf(
+                    Document("d-1", "v-1", DocumentType.INSURANCE, "Insurance 2026", 1700000000000L, 30, null, 950L)
+                ) else emptyList()
+            override suspend fun getDocumentById(id: String): Document? = null
+        }
 }

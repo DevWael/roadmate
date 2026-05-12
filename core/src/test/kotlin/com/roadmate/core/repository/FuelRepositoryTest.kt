@@ -166,4 +166,6 @@ private class FakeFuelDao : FuelDao {
 
     override suspend fun getFuelLogsModifiedSince(since: Long): List<FuelLog> =
         fuelLogs.values.filter { it.lastModified > since }
+
+    override suspend fun getFuelLogById(id: String): FuelLog? = null
 }

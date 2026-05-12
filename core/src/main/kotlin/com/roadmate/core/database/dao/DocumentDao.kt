@@ -40,4 +40,7 @@ interface DocumentDao {
 
     @Query("SELECT * FROM documents WHERE last_modified > :since")
     suspend fun getDocumentsModifiedSince(since: Long): List<Document>
+
+    @Query("SELECT * FROM documents WHERE id = :id")
+    suspend fun getDocumentById(id: String): Document?
 }

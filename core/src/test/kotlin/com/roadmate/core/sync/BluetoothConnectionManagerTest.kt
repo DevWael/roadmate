@@ -51,6 +51,7 @@ class BluetoothConnectionManagerTest {
                     override fun getVehicleCount() = kotlinx.coroutines.flow.flowOf(0)
                     override suspend fun addToOdometer(vehicleId: String, distanceKm: Double, lastModified: Long) {}
                     override suspend fun getModifiedSince(since: Long) = emptyList<com.roadmate.core.database.entity.Vehicle>()
+                    override suspend fun getVehicleById(id: String): com.roadmate.core.database.entity.Vehicle? = null
                 },
                 object : com.roadmate.core.database.dao.TripDao() {
                     override fun getTripsForVehicle(vehicleId: String) = kotlinx.coroutines.flow.flowOf(emptyList<com.roadmate.core.database.entity.Trip>())
@@ -66,6 +67,8 @@ class BluetoothConnectionManagerTest {
                     override suspend fun deleteTripPoint(tripPoint: com.roadmate.core.database.entity.TripPoint) {}
                     override suspend fun getTripsModifiedSince(since: Long) = emptyList<com.roadmate.core.database.entity.Trip>()
                     override suspend fun getTripPointsModifiedSince(since: Long) = emptyList<com.roadmate.core.database.entity.TripPoint>()
+                    override suspend fun getTripById(id: String): com.roadmate.core.database.entity.Trip? = null
+                    override suspend fun getTripPointById(id: String): com.roadmate.core.database.entity.TripPoint? = null
                 },
                 object : com.roadmate.core.database.dao.MaintenanceDao() {
                     override fun getSchedulesForVehicle(vehicleId: String) = kotlinx.coroutines.flow.flowOf(emptyList<com.roadmate.core.database.entity.MaintenanceSchedule>())
@@ -84,6 +87,8 @@ class BluetoothConnectionManagerTest {
                     override suspend fun deleteRecordsByScheduleId(scheduleId: String) {}
                     override suspend fun getSchedulesModifiedSince(since: Long) = emptyList<com.roadmate.core.database.entity.MaintenanceSchedule>()
                     override suspend fun getRecordsModifiedSince(since: Long) = emptyList<com.roadmate.core.database.entity.MaintenanceRecord>()
+                    override suspend fun getScheduleById(id: String): com.roadmate.core.database.entity.MaintenanceSchedule? = null
+                    override suspend fun getRecordById(id: String): com.roadmate.core.database.entity.MaintenanceRecord? = null
                 },
                 object : com.roadmate.core.database.dao.FuelDao {
                     override fun getFuelLogsForVehicle(vehicleId: String) = kotlinx.coroutines.flow.flowOf(emptyList<com.roadmate.core.database.entity.FuelLog>())
@@ -94,6 +99,7 @@ class BluetoothConnectionManagerTest {
                     override suspend fun deleteFuelLog(fuelLog: com.roadmate.core.database.entity.FuelLog) {}
                     override suspend fun deleteFuelLogById(fuelLogId: String) {}
                     override suspend fun getFuelLogsModifiedSince(since: Long) = emptyList<com.roadmate.core.database.entity.FuelLog>()
+                    override suspend fun getFuelLogById(id: String): com.roadmate.core.database.entity.FuelLog? = null
                 },
                 object : com.roadmate.core.database.dao.DocumentDao {
                     override fun getDocumentsForVehicle(vehicleId: String) = kotlinx.coroutines.flow.flowOf(emptyList<com.roadmate.core.database.entity.Document>())
@@ -104,12 +110,15 @@ class BluetoothConnectionManagerTest {
                     override suspend fun deleteDocument(document: com.roadmate.core.database.entity.Document) {}
                     override suspend fun deleteDocumentById(documentId: String) {}
                     override suspend fun getDocumentsModifiedSince(since: Long) = emptyList<com.roadmate.core.database.entity.Document>()
+                    override suspend fun getDocumentById(id: String): com.roadmate.core.database.entity.Document? = null
                 },
                 SyncBatcher(),
             ),
             SyncBatcher(),
             AckTracker(),
             MessageSerializer(),
+            UnackedMessageTracker(),
+            InMemorySyncTimestampStore(),
             Clock.SYSTEM,
         )
         manager = BluetoothConnectionManager(server, client, stateManager, syncSession, scope)
@@ -262,4 +271,16 @@ class BluetoothConnectionManagerTest {
             assertEquals(BluetoothConnectionManager.Mode.IDLE, manager.currentMode)
         }
     }
+
+    private class InMemorySyncTimestampStore : SyncTimestampStore(
+        object : androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences> {
+            private val prefs = kotlinx.coroutines.flow.MutableStateFlow(androidx.datastore.preferences.core.emptyPreferences())
+            override val data = prefs
+            override suspend fun updateData(transformer: suspend (androidx.datastore.preferences.core.Preferences) -> androidx.datastore.preferences.core.Preferences): androidx.datastore.preferences.core.Preferences {
+                val new = transformer(prefs.value)
+                prefs.value = new
+                return new
+            }
+        }
+    )
 }
