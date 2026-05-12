@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.IBinder
+import com.roadmate.core.sync.BluetoothConnectionManager
 import com.roadmate.core.state.BluetoothStateManager
 import com.roadmate.core.state.DrivingStateManager
 import com.roadmate.core.state.LocationStateManager
@@ -24,6 +25,7 @@ class RoadMateService : Service() {
     @Inject lateinit var drivingStateManager: DrivingStateManager
     @Inject lateinit var bluetoothStateManager: BluetoothStateManager
     @Inject lateinit var locationStateManager: LocationStateManager
+    @Inject lateinit var connectionManager: BluetoothConnectionManager
 
     override fun onCreate() {
         super.onCreate()
@@ -43,6 +45,7 @@ class RoadMateService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        connectionManager.startServer()
         return START_STICKY
     }
 
@@ -50,6 +53,7 @@ class RoadMateService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        connectionManager.stop()
         Timber.i("RoadMateService destroyed")
     }
 

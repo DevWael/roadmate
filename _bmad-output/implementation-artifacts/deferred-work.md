@@ -104,3 +104,8 @@
 - **No input length limits on name/notes fields** — AddDocumentSheet text fields accept unbounded input. Project-wide concern not specific to this story.
 - **`daysUntilExpiry` timezone sensitivity** — Uses `ZoneId.systemDefault()` which can produce ±1 day variance across timezone changes. Systemic issue affecting all date calculations in the app.
 
+## Deferred from: code review of story 4-1 (2026-05-12)
+
+- **Race condition on `isRunning` volatile flag** — `BluetoothConnectionManager.isRunning` is `@Volatile` but checked and set without synchronization. `Job.cancel()` is the real shutdown mechanism; the volatile flag is belt-and-suspenders. Low risk, no crash/ANR.
+- **`BluetoothPermissionCheckerTest` has no-op test** — `shouldShowRationale does not crash` asserts `assertTrue(true)` with zero coverage. `REQUIRED_PERMISSIONS` test uses OR condition that passes on both API levels. Pre-existing test pattern issue.
+
