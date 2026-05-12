@@ -3,6 +3,8 @@ package com.roadmate.core.sync
 import android.bluetooth.BluetoothSocket
 import com.roadmate.core.model.BtConnectionState
 import com.roadmate.core.state.BluetoothStateManager
+import com.roadmate.core.model.sync.SyncMessage
+import com.roadmate.core.sync.protocol.MessageSerializer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -13,7 +15,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import timber.log.Timber
 import java.io.IOException
 import javax.inject.Inject
@@ -24,17 +26,19 @@ class BluetoothConnectionManager(
     private val server: BluetoothSyncServer,
     private val client: BluetoothSyncClient,
     private val stateManager: BluetoothStateManager,
+    private val syncSession: SyncSession,
     private val scope: CoroutineScope,
 ) {
     @Inject constructor(
         server: BluetoothSyncServer,
         client: BluetoothSyncClient,
         stateManager: BluetoothStateManager,
+        syncSession: SyncSession,
     ) : this(
         server = server,
         client = client,
         stateManager = stateManager,
-        // TODO(Story 4-4): Tie scope lifecycle to start/stop instead of constructor to prevent leaks on service recreation.
+        syncSession = syncSession,
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     )
 
@@ -53,6 +57,7 @@ class BluetoothConnectionManager(
     companion object {
         private const val INITIAL_BACKOFF_MS = 2000L
         private const val MAX_BACKOFF_MS = 30_000L
+        private const val SYNC_TIMEOUT_MS = 30_000L
     }
 
     fun startServer() {
@@ -138,13 +143,42 @@ class BluetoothConnectionManager(
         }
     }
 
-    /**
-     * Suspends until the connection manager is stopped or the coroutine is cancelled.
-     * TODO(Story 4-2): Replace with actual sync protocol handler that reads/writes
-     * data and detects disconnect via IOException.
-     */
     private suspend fun awaitProtocolCompletion() {
-        suspendCancellableCoroutine<Unit> { /* cancelled on stop() */ }
+        val socket = activeSocket ?: return
+        try {
+            val syncMessages = syncSession.buildOutgoingMessages()
+            val serializer = syncSession.getMessageSerializer()
+            val output = socket.outputStream
+            val input = socket.inputStream
+
+            syncSession.beginSync()
+
+            for (msg in syncMessages) {
+                val json = kotlinx.serialization.json.Json.encodeToString(SyncMessage.serializer(), msg)
+                serializer.writeMessage(output, json)
+            }
+
+            withTimeout(SYNC_TIMEOUT_MS) {
+                while (!syncSession.isSyncComplete()) {
+                    val ackJson = serializer.readMessage(input)
+                    val ack = kotlinx.serialization.json.Json.decodeFromString(SyncMessage.serializer(), ackJson)
+                    if (ack is SyncMessage.SyncAck) {
+                        syncSession.handleAck(ack)
+                    }
+                }
+            }
+
+            syncSession.syncComplete()
+            Timber.i("ConnectionManager: sync completed successfully")
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: IOException) {
+            Timber.e(e, "ConnectionManager: sync failed")
+            syncSession.syncFailed(e.message ?: "IO error")
+        } catch (e: Exception) {
+            Timber.e(e, "ConnectionManager: sync error")
+            syncSession.syncFailed(e.message ?: "Unknown error")
+        }
     }
 
     internal fun calculateBackoff(attempt: Int): Long {

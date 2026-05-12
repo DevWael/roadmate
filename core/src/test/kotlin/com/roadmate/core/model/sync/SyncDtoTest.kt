@@ -248,8 +248,8 @@ class SyncDtoTest {
     fun `SyncMessage sealed interface has all subtypes`() {
         val status = SyncMessage.SyncStatus(deviceId = "dev-1", timestamp = 1000L, lastSyncTimestamp = 500L)
         val pull = SyncMessage.SyncPull(since = 500L, entityTypes = listOf("trip", "vehicle"))
-        val push = SyncMessage.SyncPush(payload = "data", timestamp = 1000L)
-        val ack = SyncMessage.SyncAck(success = true, timestamp = 1000L, message = null)
+        val push = SyncMessage.SyncPush(entityType = "trip", data = "data", messageId = "uuid-1", timestamp = 1000L)
+        val ack = SyncMessage.SyncAck(success = true, messageId = "uuid-1", timestamp = 1000L, message = null)
 
         assertNotNull(status)
         assertNotNull(pull)

@@ -40,4 +40,7 @@ interface VehicleDao {
 
     @Query("UPDATE vehicles SET odometer_km = odometer_km + :distanceKm, last_modified = :lastModified WHERE id = :vehicleId")
     suspend fun addToOdometer(vehicleId: String, distanceKm: Double, lastModified: Long)
+
+    @Query("SELECT * FROM vehicles WHERE last_modified > :since")
+    suspend fun getModifiedSince(since: Long): List<Vehicle>
 }

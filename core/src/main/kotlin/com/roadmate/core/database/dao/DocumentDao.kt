@@ -37,4 +37,7 @@ interface DocumentDao {
 
     @Query("DELETE FROM documents WHERE id = :documentId")
     suspend fun deleteDocumentById(documentId: String)
+
+    @Query("SELECT * FROM documents WHERE last_modified > :since")
+    suspend fun getDocumentsModifiedSince(since: Long): List<Document>
 }

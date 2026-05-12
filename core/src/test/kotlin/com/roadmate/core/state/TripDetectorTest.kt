@@ -1009,4 +1009,10 @@ private class FakeTripDao : TripDao() {
         tripPoints.remove(tripPoint.id)
         updateFlow()
     }
+
+    override suspend fun getTripsModifiedSince(since: Long): List<Trip> =
+        trips.values.filter { it.lastModified > since }
+
+    override suspend fun getTripPointsModifiedSince(since: Long): List<TripPoint> =
+        tripPoints.values.filter { it.lastModified > since }
 }

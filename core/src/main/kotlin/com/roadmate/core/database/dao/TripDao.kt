@@ -50,4 +50,10 @@ abstract class TripDao {
         upsertTripPoints(tripPoints)
         upsertTrip(trip)
     }
+
+    @Query("SELECT * FROM trips WHERE last_modified > :since")
+    abstract suspend fun getTripsModifiedSince(since: Long): List<Trip>
+
+    @Query("SELECT * FROM trip_points WHERE last_modified > :since")
+    abstract suspend fun getTripPointsModifiedSince(since: Long): List<TripPoint>
 }

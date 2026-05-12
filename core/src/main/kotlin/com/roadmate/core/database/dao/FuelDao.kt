@@ -37,4 +37,7 @@ interface FuelDao {
 
     @Query("DELETE FROM fuel_logs WHERE id = :fuelLogId")
     suspend fun deleteFuelLogById(fuelLogId: String)
+
+    @Query("SELECT * FROM fuel_logs WHERE last_modified > :since")
+    suspend fun getFuelLogsModifiedSince(since: Long): List<FuelLog>
 }

@@ -159,4 +159,7 @@ private class FakeDocumentDao : DocumentDao {
         documents.remove(documentId)
         updateFlow()
     }
+
+    override suspend fun getDocumentsModifiedSince(since: Long): List<Document> =
+        documents.values.filter { it.lastModified > since }
 }

@@ -109,3 +109,7 @@
 - **Race condition on `isRunning` volatile flag** — `BluetoothConnectionManager.isRunning` is `@Volatile` but checked and set without synchronization. `Job.cancel()` is the real shutdown mechanism; the volatile flag is belt-and-suspenders. Low risk, no crash/ANR.
 - **`BluetoothPermissionCheckerTest` has no-op test** — `shouldShowRationale does not crash` asserts `assertTrue(true)` with zero coverage. `REQUIRED_PERMISSIONS` test uses OR condition that passes on both API levels. Pre-existing test pattern issue.
 
+## Deferred from: code review of story 4-2 (2026-05-12)
+
+- **No bidirectional sync — only outgoing push, no incoming receive/upsert logic** — `awaitProtocolCompletion()` only sends outgoing PUSH messages and reads ACKs. There is no logic to receive incoming PUSH messages from the remote side, upsert them locally, or send ACKs back. Scope for Story 4-3 (Conflict Resolution) and Story 4-4 (Sync Triggers).
+- **`lastSyncTimestamp` never persisted after sync completion (AC #6)** — `syncComplete()` transitions state to `Connected` but never writes the new sync timestamp to DataStore or any persistent storage. Next sync will use `0L` again. Requires a dedicated persistence mechanism.

@@ -77,4 +77,10 @@ abstract class MaintenanceDao {
         deleteRecordsByScheduleId(scheduleId)
         deleteScheduleById(scheduleId)
     }
+
+    @Query("SELECT * FROM maintenance_schedules WHERE last_modified > :since")
+    abstract suspend fun getSchedulesModifiedSince(since: Long): List<MaintenanceSchedule>
+
+    @Query("SELECT * FROM maintenance_records WHERE last_modified > :since")
+    abstract suspend fun getRecordsModifiedSince(since: Long): List<MaintenanceRecord>
 }

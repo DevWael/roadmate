@@ -317,6 +317,12 @@ private class FakeTripDaoForRecovery : TripDao() {
     override suspend fun upsertTripPoint(tripPoint: TripPoint) {}
     override suspend fun upsertTripPoints(tripPoints: List<TripPoint>) {}
     override suspend fun deleteTripPoint(tripPoint: TripPoint) {}
+
+    override suspend fun getTripsModifiedSince(since: Long): List<Trip> =
+        trips.values.filter { it.lastModified > since }
+
+    override suspend fun getTripPointsModifiedSince(since: Long): List<TripPoint> =
+        emptyList()
 }
 
 private class FakeVehicleDaoForRecovery : VehicleDao {
@@ -360,4 +366,7 @@ private class FakeVehicleDaoForRecovery : VehicleDao {
         vehicle = v.copy(odometerKm = v.odometerKm + distanceKm, lastModified = lastModified)
         updateFlow()
     }
+
+    override suspend fun getModifiedSince(since: Long): List<Vehicle> =
+        listOfNotNull(vehicle).filter { it.lastModified > since }
 }

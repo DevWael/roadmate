@@ -36,7 +36,9 @@ sealed interface SyncMessage {
     @Serializable
     @SerialName("sync_push")
     data class SyncPush(
-        val payload: String,
+        val entityType: String,
+        val data: String,
+        val messageId: String,
         val timestamp: Long,
     ) : SyncMessage
 
@@ -44,6 +46,7 @@ sealed interface SyncMessage {
     @SerialName("sync_ack")
     data class SyncAck(
         val success: Boolean,
+        val messageId: String,
         val timestamp: Long,
         val message: String?,
     ) : SyncMessage

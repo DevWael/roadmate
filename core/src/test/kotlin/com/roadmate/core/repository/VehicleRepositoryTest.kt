@@ -214,4 +214,7 @@ private class FakeVehicleDao : VehicleDao {
         )
         updateFlow()
     }
+
+    override suspend fun getModifiedSince(since: Long): List<Vehicle> =
+        vehicles.values.filter { it.lastModified > since }
 }
