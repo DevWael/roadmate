@@ -12,16 +12,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
+import androidx.compose.runtime.LaunchedEffect
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.navDeepLink
+import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.roadmate.core.model.UiState
 import com.roadmate.core.repository.VehicleRepository
 import com.roadmate.phone.ui.components.EmptyVehicleState
 import com.roadmate.phone.ui.documents.DocumentDetailScreen
 import com.roadmate.phone.ui.documents.DocumentListScreen
 import com.roadmate.phone.ui.fuel.FuelLogScreen
 import com.roadmate.phone.ui.hub.VehicleHubScreen
+import com.roadmate.phone.ui.maintenance.MaintenanceDetailScreen
 import com.roadmate.phone.ui.maintenance.MaintenanceListScreen
+import com.roadmate.phone.ui.maintenance.MaintenanceCompletionSheetState
+import com.roadmate.phone.ui.maintenance.MaintenanceDetailViewModel
 import com.roadmate.phone.ui.settings.VehicleManagementScreen
 import com.roadmate.phone.ui.trips.TripDetailScreen
 import com.roadmate.phone.ui.trips.TripListScreen
@@ -101,16 +108,44 @@ fun RoadMateNavHost(
                     ),
                 ) { backStackEntry ->
                     val route: MaintenanceDetail = backStackEntry.toRoute()
-                    // TODO: Wire to MaintenanceDetailViewModel in Story 5-5
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = "Maintenance Detail: ${route.scheduleId}",
-                            style = MaterialTheme.typography.headlineMedium,
-                        )
+                    val detailViewModel: MaintenanceDetailViewModel = hiltViewModel()
+                    val detailUiState by detailViewModel.uiState.collectAsStateWithLifecycle()
+                    val showSheet by detailViewModel.showCompletionSheet.collectAsStateWithLifecycle()
+                    val completionDate by detailViewModel.completionDate.collectAsStateWithLifecycle()
+                    val completionOdo by detailViewModel.completionOdometerKm.collectAsStateWithLifecycle()
+                    val completionCost by detailViewModel.completionCost.collectAsStateWithLifecycle()
+                    val completionLocation by detailViewModel.completionLocation.collectAsStateWithLifecycle()
+                    val completionNotes by detailViewModel.completionNotes.collectAsStateWithLifecycle()
+                    val completionErrors by detailViewModel.completionErrors.collectAsStateWithLifecycle()
+                    val isSaveEnabled by detailViewModel.isSaveEnabled.collectAsStateWithLifecycle()
+
+                    LaunchedEffect(route.scheduleId) {
+                        detailViewModel.loadSchedule(route.scheduleId)
                     }
+
+                    MaintenanceDetailScreen(
+                        uiState = detailUiState,
+                        onBack = { navController.popBackStack() },
+                        completionSheetState = MaintenanceCompletionSheetState(
+                            isVisible = showSheet,
+                            datePerformed = completionDate,
+                            odometerKm = completionOdo,
+                            vehicleOdometerKm = detailViewModel.getVehicleOdometerKm(),
+                            cost = completionCost,
+                            location = completionLocation,
+                            notes = completionNotes,
+                            errors = completionErrors,
+                            isSaveEnabled = isSaveEnabled,
+                            onShowSheet = detailViewModel::onShowCompletionSheet,
+                            onDateChange = detailViewModel::onCompletionDateChange,
+                            onOdometerKmChange = detailViewModel::onCompletionOdometerKmChange,
+                            onCostChange = detailViewModel::onCompletionCostChange,
+                            onLocationChange = detailViewModel::onCompletionLocationChange,
+                            onNotesChange = detailViewModel::onCompletionNotesChange,
+                            onSave = detailViewModel::completeMaintenance,
+                            onDismiss = detailViewModel::onDismissCompletionSheet,
+                        ),
+                    )
                 }
 
                 composable<FuelLog> {
