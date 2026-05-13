@@ -59,6 +59,9 @@ fun RoadMateMainScreen() {
     val alertMessage by mainViewModel.maintenanceAlertMessage.collectAsStateWithLifecycle()
     val drivingState by mainViewModel.drivingState.collectAsStateWithLifecycle()
     val gpsState by mainViewModel.gpsState.collectAsStateWithLifecycle()
+    val maintenanceSchedules by mainViewModel.maintenanceSchedules.collectAsStateWithLifecycle()
+    val btConnectionState by mainViewModel.btConnectionState.collectAsStateWithLifecycle()
+    val lastSyncTimestamp by mainViewModel.lastSyncTimestamp.collectAsStateWithLifecycle()
 
     if (!isReady) return
 
@@ -119,6 +122,9 @@ fun RoadMateMainScreen() {
                 gpsState = gpsState,
                 vehicle = currentVehicle,
                 trips = trips,
+                maintenanceSchedules = maintenanceSchedules,
+                btConnectionState = btConnectionState,
+                lastSyncTimestamp = lastSyncTimestamp,
                 alertMessage = alertMessage,
                 onSwitchVehicle = { showSwitcher = true },
             )

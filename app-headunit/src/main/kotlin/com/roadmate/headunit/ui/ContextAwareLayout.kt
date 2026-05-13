@@ -11,12 +11,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.roadmate.core.database.entity.MaintenanceSchedule
 import com.roadmate.core.database.entity.Trip
 import com.roadmate.core.database.entity.Vehicle
+import com.roadmate.core.model.BtConnectionState
 import com.roadmate.core.model.DrivingState
 import com.roadmate.core.model.GpsState
 import com.roadmate.headunit.ui.driving.DrivingHUD
-import com.roadmate.headunit.ui.parked.DashboardShell
+import com.roadmate.headunit.ui.parked.ParkedDashboard
 
 internal const val TRANSITION_DURATION_MS = 400
 
@@ -26,6 +28,9 @@ fun ContextAwareLayout(
     gpsState: GpsState,
     vehicle: Vehicle?,
     trips: List<Trip>,
+    maintenanceSchedules: List<MaintenanceSchedule>,
+    btConnectionState: BtConnectionState,
+    lastSyncTimestamp: Long,
     alertMessage: String?,
     onSwitchVehicle: () -> Unit,
     modifier: Modifier = Modifier,
@@ -56,10 +61,12 @@ fun ContextAwareLayout(
                 alertMessage = alertMessage,
             )
         } else {
-            DashboardShell(
+            ParkedDashboard(
                 vehicle = vehicle,
                 trips = trips,
-                onSwitchVehicle = onSwitchVehicle,
+                maintenanceSchedules = maintenanceSchedules,
+                btConnectionState = btConnectionState,
+                lastSyncTimestamp = lastSyncTimestamp,
             )
         }
     }

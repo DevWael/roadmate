@@ -17,6 +17,7 @@ import com.roadmate.core.repository.ActiveVehicleRepository
 import com.roadmate.core.repository.MaintenanceRepository
 import com.roadmate.core.repository.TripRepository
 import com.roadmate.core.repository.VehicleRepository
+import com.roadmate.core.state.BluetoothStateManager
 import com.roadmate.core.state.DrivingStateManager
 import com.roadmate.core.state.LocationStateManager
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +57,7 @@ class MainViewModelTest {
     private lateinit var maintenanceRepository: MaintenanceRepository
     private lateinit var drivingStateManager: DrivingStateManager
     private lateinit var locationStateManager: LocationStateManager
+    private lateinit var bluetoothStateManager: BluetoothStateManager
 
     @BeforeEach
     fun setUp() {
@@ -70,6 +72,7 @@ class MainViewModelTest {
         maintenanceRepository = MaintenanceRepository(fakeMaintenanceDao)
         drivingStateManager = DrivingStateManager()
         locationStateManager = LocationStateManager()
+        bluetoothStateManager = BluetoothStateManager()
     }
 
     @AfterEach
@@ -84,6 +87,7 @@ class MainViewModelTest {
         maintenanceRepository = maintenanceRepository,
         drivingStateManager = drivingStateManager,
         locationStateManager = locationStateManager,
+        bluetoothStateManager = bluetoothStateManager,
     )
 
     private fun testVehicle(
@@ -358,6 +362,15 @@ private class FakeMainMaintenanceDao : MaintenanceDao() {
     override suspend fun deleteRecordById(recordId: String) {}
 
     override suspend fun deleteRecordsByScheduleId(scheduleId: String) {}
+
+    override suspend fun getSchedulesModifiedSince(since: Long): List<MaintenanceSchedule> =
+        schedules.values.filter { it.lastModified > since }
+
+    override suspend fun getRecordsModifiedSince(since: Long): List<MaintenanceRecord> = emptyList()
+
+    override suspend fun getScheduleById(id: String): MaintenanceSchedule? = schedules[id]
+
+    override suspend fun getRecordById(id: String): MaintenanceRecord? = null
 }
 
 private class FakeMainVehicleDao : VehicleDao {
@@ -404,6 +417,11 @@ private class FakeMainVehicleDao : VehicleDao {
         )
         updateFlow()
     }
+
+    override suspend fun getModifiedSince(since: Long): List<Vehicle> =
+        vehicles.values.filter { it.lastModified > since }
+
+    override suspend fun getVehicleById(id: String): Vehicle? = vehicles[id]
 }
 
 private class FakeMainTripDao : TripDao() {
@@ -451,6 +469,15 @@ private class FakeMainTripDao : TripDao() {
     override suspend fun upsertTripPoints(tripPoints: List<TripPoint>) {}
 
     override suspend fun deleteTripPoint(tripPoint: TripPoint) {}
+
+    override suspend fun getTripsModifiedSince(since: Long): List<Trip> =
+        trips.values.filter { it.lastModified > since }
+
+    override suspend fun getTripPointsModifiedSince(since: Long): List<TripPoint> = emptyList()
+
+    override suspend fun getTripById(id: String): Trip? = trips[id]
+
+    override suspend fun getTripPointById(id: String): TripPoint? = null
 }
 
 private class FakeMainDataStore : DataStore<Preferences> {

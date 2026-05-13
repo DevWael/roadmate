@@ -293,4 +293,14 @@ private class CompletionFakeMaintenanceDao : MaintenanceDao() {
         toRemove.forEach { records.remove(it) }
         updateRecordFlow()
     }
+
+    override suspend fun getSchedulesModifiedSince(since: Long): List<MaintenanceSchedule> =
+        schedules.values.filter { it.lastModified > since }
+
+    override suspend fun getRecordsModifiedSince(since: Long): List<MaintenanceRecord> =
+        records.values.filter { it.lastModified > since }
+
+    override suspend fun getScheduleById(id: String): MaintenanceSchedule? = schedules[id]
+
+    override suspend fun getRecordById(id: String): MaintenanceRecord? = records[id]
 }

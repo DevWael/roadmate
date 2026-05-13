@@ -343,6 +343,11 @@ private class FakeVehicleDao : VehicleDao {
         vehicles[vehicleId] = vehicle.copy(odometerKm = vehicle.odometerKm + distanceKm, lastModified = lastModified)
         updateFlow()
     }
+
+    override suspend fun getModifiedSince(since: Long): List<Vehicle> =
+        vehicles.values.filter { it.lastModified > since }
+
+    override suspend fun getVehicleById(id: String): Vehicle? = vehicles[id]
 }
 
 private class FakeMaintenanceDao : MaintenanceDao() {
@@ -402,6 +407,18 @@ private class FakeMaintenanceDao : MaintenanceDao() {
     override suspend fun deleteRecordsByScheduleId(scheduleId: String) {
         records.removeIf { it.scheduleId == scheduleId }
     }
+
+    override suspend fun getSchedulesModifiedSince(since: Long): List<MaintenanceSchedule> =
+        schedules.filter { it.lastModified > since }
+
+    override suspend fun getRecordsModifiedSince(since: Long): List<MaintenanceRecord> =
+        records.filter { it.lastModified > since }
+
+    override suspend fun getScheduleById(id: String): MaintenanceSchedule? =
+        schedules.find { it.id == id }
+
+    override suspend fun getRecordById(id: String): MaintenanceRecord? =
+        records.find { it.id == id }
 }
 
 private class FakeDataStore : DataStore<Preferences> {

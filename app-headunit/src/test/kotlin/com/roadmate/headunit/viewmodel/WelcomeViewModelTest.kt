@@ -308,6 +308,11 @@ private class FakeWelcomeVehicleDao : VehicleDao {
         vehicles[vehicleId] = vehicle.copy(odometerKm = vehicle.odometerKm + distanceKm, lastModified = lastModified)
         updateFlow()
     }
+
+    override suspend fun getModifiedSince(since: Long): List<Vehicle> =
+        vehicles.values.filter { it.lastModified > since }
+
+    override suspend fun getVehicleById(id: String): Vehicle? = vehicles[id]
 }
 
 private class FakeWelcomeDataStore : DataStore<Preferences> {

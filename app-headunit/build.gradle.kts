@@ -27,6 +27,8 @@ android {
 dependencies {
     implementation(project(":core"))
 
+    implementation(libs.androidx.compose.material.icons.extended)
+
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

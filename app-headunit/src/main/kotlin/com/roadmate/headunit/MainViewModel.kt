@@ -5,12 +5,14 @@ import androidx.lifecycle.viewModelScope
 import com.roadmate.core.database.entity.MaintenanceSchedule
 import com.roadmate.core.database.entity.Trip
 import com.roadmate.core.database.entity.Vehicle
+import com.roadmate.core.model.BtConnectionState
 import com.roadmate.core.model.DrivingState
 import com.roadmate.core.model.GpsState
 import com.roadmate.core.repository.ActiveVehicleRepository
 import com.roadmate.core.repository.MaintenanceRepository
 import com.roadmate.core.repository.TripRepository
 import com.roadmate.core.repository.VehicleRepository
+import com.roadmate.core.state.BluetoothStateManager
 import com.roadmate.core.state.DrivingStateManager
 import com.roadmate.core.state.LocationStateManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,6 +39,7 @@ class MainViewModel @Inject constructor(
     private val maintenanceRepository: MaintenanceRepository,
     private val drivingStateManager: DrivingStateManager,
     private val locationStateManager: LocationStateManager,
+    private val bluetoothStateManager: BluetoothStateManager,
 ) : ViewModel() {
 
     private val _isReady = MutableStateFlow(false)
@@ -44,6 +47,7 @@ class MainViewModel @Inject constructor(
 
     val drivingState: StateFlow<DrivingState> = drivingStateManager.drivingState
     val gpsState: StateFlow<GpsState> = locationStateManager.gpsState
+    val btConnectionState: StateFlow<BtConnectionState> = bluetoothStateManager.btConnectionState
 
     val activeVehicleId: StateFlow<String?> = activeVehicleRepository.activeVehicleId
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -62,6 +66,24 @@ class MainViewModel @Inject constructor(
             if (id != null) tripRepository.getTripsForVehicle(id) else flowOf(emptyList())
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val maintenanceSchedules: StateFlow<List<MaintenanceSchedule>> = activeVehicleId
+        .flatMapLatest { id ->
+            if (id != null) maintenanceRepository.getSchedulesForVehicle(id) else flowOf(emptyList())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val lastSyncTimestamp: StateFlow<Long> = activeVehicleId
+        .flatMapLatest { id ->
+            if (id != null) {
+                currentVehicle.map { vehicle ->
+                    vehicle?.lastModified ?: 0L
+                }
+            } else {
+                flowOf(0L)
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
     val maintenanceAlertMessage: StateFlow<String?> = activeVehicleId
         .flatMapLatest { id ->

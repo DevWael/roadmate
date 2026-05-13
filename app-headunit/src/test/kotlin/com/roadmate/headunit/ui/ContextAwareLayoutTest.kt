@@ -1,5 +1,6 @@
 package com.roadmate.headunit.ui
 
+import com.roadmate.core.model.BtConnectionState
 import com.roadmate.core.model.DrivingState
 import com.roadmate.core.model.GpsState
 import org.junit.jupiter.api.Assertions.assertEquals

@@ -151,3 +151,10 @@
 ## Deferred from: code review of story 5-6 (2026-05-14)
 
 - **`onVehicleManagementClick` / `onDocumentListClick` params declared but never used in VehicleHubScreen** — AC#4 says "Can navigate to vehicle management" for single-vehicle scenario, but neither callback is wired to any UI element. Pre-existing params from Story 5-2; navigation targets not yet implemented.
+
+## Deferred from: code review of story 6-1 (2026-05-14)
+
+- **`lastSyncTimestamp` uses `vehicle.lastModified` not actual BT sync timestamp** — `MainViewModel.lastSyncTimestamp` derives from the vehicle entity's `lastModified` field, not a dedicated sync completion timestamp. Semantically misleading; requires sync architecture change to track actual BT sync timestamps separately.
+- **Duplicate `formatOdometer` function** — The same utility exists in `ParkedDashboard.kt` and `DrivingHUD.kt`. Extract into a shared utility in `:core` or the `parked` package.
+- **`material-icons-extended` heavyweight dependency** — Added for a single icon (`Icons.Filled.Refresh`). This library contains thousands of icons and increases APK size. Consider extracting needed icons as vector drawables or switching to a custom icon approach project-wide.
+- **`ContextAwareLayoutTest` has no assertions for new parameters** — The test only adds a `BtConnectionState` import but has zero assertions for `maintenanceSchedules`, `btConnectionState`, or `lastSyncTimestamp` parameters. Test coverage gap for the parked/driving transition behavior.
