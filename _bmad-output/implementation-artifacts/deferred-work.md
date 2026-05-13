@@ -124,3 +124,7 @@
 ## Deferred from: code review of story 4-4 (2026-05-13)
 
 - **eventObservationJobs list not thread-safe** — `SyncTriggerManager.eventObservationJobs` uses `mutableListOf<Job>()` with no synchronization. Pre-existing pattern; lifecycle methods are called sequentially in practice. Address if multi-threaded access becomes a concern.
+
+## Deferred from: code review of story 4-5 (2026-05-13)
+
+- **No `@Preview` composables in StatusChip.kt or ShimmerSkeleton.kt** — Zero preview functions in either new UI file. Pre-existing codebase-wide gap first noted in Story 1-6 review.
