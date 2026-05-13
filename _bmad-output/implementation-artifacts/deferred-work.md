@@ -137,4 +137,10 @@
 
 ## Deferred from: code review of story 5-2 (2026-05-13)
 
-- **"See all" clickable Row lacks accessibility contentDescription** — SectionCard "See all →" link is a clickable Row without semantic `contentDescription`. Pre-existing pattern across all section cards. Address in a11y pass.
+- **\"See all\" clickable Row lacks accessibility contentDescription** — SectionCard "See all →" link is a clickable Row without semantic `contentDescription`. Pre-existing pattern across all section cards. Address in a11y pass.
+
+## Deferred from: code review of story 5-3 (2026-05-13)
+
+- **Duplicate FakeTripDao implementations across test files** — `ListFakeTripDao` and `DetailFakeTripDao` are near-identical copies in separate test files. Pre-existing test pattern; extract to shared test fixture when `:core-test` module is established.
+- **No testTag/contentDescription on TripCard for accessibility** — TripCard Row is clickable but lacks semantic `contentDescription` for screen readers. Pre-existing a11y gap across all card components; address in dedicated accessibility pass.
+
