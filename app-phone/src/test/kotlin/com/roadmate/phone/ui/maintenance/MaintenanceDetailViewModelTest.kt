@@ -290,6 +290,16 @@ private class DetailFakeMaintenanceDao : MaintenanceDao() {
         toRemove.forEach { records.remove(it) }
         updateRecordFlow()
     }
+
+    override suspend fun getSchedulesModifiedSince(since: Long): List<MaintenanceSchedule> =
+        schedules.values.filter { it.lastServiceDate > since }
+
+    override suspend fun getRecordsModifiedSince(since: Long): List<MaintenanceRecord> =
+        records.values.filter { it.datePerformed > since }
+
+    override suspend fun getScheduleById(id: String): MaintenanceSchedule? = schedules[id]
+
+    override suspend fun getRecordById(id: String): MaintenanceRecord? = records[id]
 }
 
 private class DetailFakeVehicleDao : VehicleDao {
@@ -331,4 +341,9 @@ private class DetailFakeVehicleDao : VehicleDao {
             updateVehicleFlow()
         }
     }
+
+    override suspend fun getModifiedSince(since: Long): List<Vehicle> =
+        vehicles.values.filter { it.lastModified > since }
+
+    override suspend fun getVehicleById(id: String): Vehicle? = vehicles[id]
 }

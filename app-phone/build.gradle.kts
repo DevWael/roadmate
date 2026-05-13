@@ -2,6 +2,7 @@ plugins {
     id("roadmate.android.application")
     id("roadmate.android.compose")
     id("roadmate.android.hilt")
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
