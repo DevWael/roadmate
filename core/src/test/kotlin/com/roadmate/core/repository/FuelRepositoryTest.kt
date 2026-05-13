@@ -137,6 +137,20 @@ private class FakeFuelDao : FuelDao {
                 .firstOrNull()
         }
 
+    override fun getLatestFuelEntry(vehicleId: String): Flow<FuelLog?> =
+        flow.map { list ->
+            list.filter { it.vehicleId == vehicleId }
+                .sortedByDescending { it.date }
+                .firstOrNull()
+        }
+
+    override fun getTwoLastFullTankEntries(vehicleId: String): Flow<List<FuelLog>> =
+        flow.map { list ->
+            list.filter { it.vehicleId == vehicleId && it.isFullTank }
+                .sortedByDescending { it.date }
+                .take(2)
+        }
+
     override fun getFuelLog(fuelLogId: String): Flow<FuelLog?> =
         flow.map { list -> list.find { it.id == fuelLogId } }
 

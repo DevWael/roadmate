@@ -597,6 +597,8 @@ private class HubFakeFuelDao : FuelDao {
     fun updateFlow() { fuelFlow.value = fuelLogs.values.toList() }
     override fun getFuelLogsForVehicle(vehicleId: String): Flow<List<FuelLog>> = fuelFlow.map { it.filter { f -> f.vehicleId == vehicleId } }
     override fun getLastFullTankEntry(vehicleId: String): Flow<FuelLog?> = fuelFlow.map { it.filter { f -> f.vehicleId == vehicleId && f.isFullTank }.maxByOrNull { f -> f.date } }
+    override fun getLatestFuelEntry(vehicleId: String): Flow<FuelLog?> = fuelFlow.map { it.filter { f -> f.vehicleId == vehicleId }.maxByOrNull { f -> f.date } }
+    override fun getTwoLastFullTankEntries(vehicleId: String): Flow<List<FuelLog>> = fuelFlow.map { it.filter { f -> f.vehicleId == vehicleId && f.isFullTank }.sortedByDescending { f -> f.date }.take(2) }
     override fun getFuelLog(fuelLogId: String): Flow<FuelLog?> = fuelFlow.map { it.find { f -> f.id == fuelLogId } }
     override suspend fun upsertFuelLog(fuelLog: FuelLog) { fuelLogs[fuelLog.id] = fuelLog; updateFlow() }
     override suspend fun upsertFuelLogs(fuelLogs: List<FuelLog>) { fuelLogs.forEach { this.fuelLogs[it.id] = it }; updateFlow() }

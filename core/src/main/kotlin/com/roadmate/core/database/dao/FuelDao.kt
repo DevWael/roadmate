@@ -23,6 +23,12 @@ interface FuelDao {
     @Query("SELECT * FROM fuel_logs WHERE vehicle_id = :vehicleId AND is_full_tank = 1 ORDER BY date DESC LIMIT 1")
     fun getLastFullTankEntry(vehicleId: String): Flow<FuelLog?>
 
+    @Query("SELECT * FROM fuel_logs WHERE vehicle_id = :vehicleId ORDER BY date DESC LIMIT 1")
+    fun getLatestFuelEntry(vehicleId: String): Flow<FuelLog?>
+
+    @Query("SELECT * FROM fuel_logs WHERE vehicle_id = :vehicleId AND is_full_tank = 1 ORDER BY date DESC LIMIT 2")
+    fun getTwoLastFullTankEntries(vehicleId: String): Flow<List<FuelLog>>
+
     @Query("SELECT * FROM fuel_logs WHERE id = :fuelLogId")
     fun getFuelLog(fuelLogId: String): Flow<FuelLog?>
 

@@ -93,6 +93,8 @@ class BluetoothConnectionManagerTest {
                 object : com.roadmate.core.database.dao.FuelDao {
                     override fun getFuelLogsForVehicle(vehicleId: String) = kotlinx.coroutines.flow.flowOf(emptyList<com.roadmate.core.database.entity.FuelLog>())
                     override fun getLastFullTankEntry(vehicleId: String) = kotlinx.coroutines.flow.flowOf<com.roadmate.core.database.entity.FuelLog?>(null)
+                    override fun getLatestFuelEntry(vehicleId: String) = kotlinx.coroutines.flow.flowOf<com.roadmate.core.database.entity.FuelLog?>(null)
+                    override fun getTwoLastFullTankEntries(vehicleId: String) = kotlinx.coroutines.flow.flowOf(emptyList<com.roadmate.core.database.entity.FuelLog>())
                     override fun getFuelLog(fuelLogId: String) = kotlinx.coroutines.flow.flowOf<com.roadmate.core.database.entity.FuelLog?>(null)
                     override suspend fun upsertFuelLog(fuelLog: com.roadmate.core.database.entity.FuelLog) {}
                     override suspend fun upsertFuelLogs(fuelLogs: List<com.roadmate.core.database.entity.FuelLog>) {}

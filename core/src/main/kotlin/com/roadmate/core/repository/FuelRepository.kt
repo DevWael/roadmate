@@ -23,6 +23,12 @@ class FuelRepository @Inject constructor(
     fun getLastFullTankEntry(vehicleId: String): Flow<FuelLog?> =
         fuelDao.getLastFullTankEntry(vehicleId)
 
+    fun getLatestFuelEntry(vehicleId: String): Flow<FuelLog?> =
+        fuelDao.getLatestFuelEntry(vehicleId)
+
+    fun getTwoLastFullTankEntries(vehicleId: String): Flow<List<FuelLog>> =
+        fuelDao.getTwoLastFullTankEntries(vehicleId)
+
     fun getFuelLog(fuelLogId: String): Flow<FuelLog?> =
         fuelDao.getFuelLog(fuelLogId)
 

@@ -114,7 +114,9 @@ fun RoadMateNavHost(
                 }
 
                 composable<FuelLog> {
-                    FuelLogScreen()
+                    FuelLogScreen(
+                        onBack = { navController.popBackStack() },
+                    )
                 }
 
                 composable<DocumentList> {

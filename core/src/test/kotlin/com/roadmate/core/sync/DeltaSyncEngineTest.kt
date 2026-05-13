@@ -224,6 +224,8 @@ class DeltaSyncEngineTest {
     private class StubFuelDao : FuelDao {
         override fun getFuelLogsForVehicle(vehicleId: String) = kotlinx.coroutines.flow.flowOf(emptyList<FuelLog>())
         override fun getLastFullTankEntry(vehicleId: String) = kotlinx.coroutines.flow.flowOf<FuelLog?>(null)
+        override fun getLatestFuelEntry(vehicleId: String) = kotlinx.coroutines.flow.flowOf<FuelLog?>(null)
+        override fun getTwoLastFullTankEntries(vehicleId: String) = kotlinx.coroutines.flow.flowOf(emptyList<FuelLog>())
         override fun getFuelLog(fuelLogId: String) = kotlinx.coroutines.flow.flowOf<FuelLog?>(null)
         override suspend fun upsertFuelLog(fuelLog: FuelLog) {}
         override suspend fun upsertFuelLogs(fuelLogs: List<FuelLog>) {}
