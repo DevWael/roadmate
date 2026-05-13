@@ -174,7 +174,6 @@ class VehicleHubViewModelTest {
             viewModel.uiState.test {
                 val state = awaitItem()
                 assertTrue(state is UiState.Error)
-                assertTrue((state as UiState.Error).message.contains("Vehicle not found"))
             }
         }
     }

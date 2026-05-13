@@ -1,6 +1,6 @@
 # Story 5.6: Vehicle Switcher & Multi-Vehicle Support
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -24,19 +24,19 @@ so that I can view and manage data for each car separately.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Vehicle selector UI (AC: #1, #4)
-  - [ ] Create `app-phone/ui/components/VehicleSelectorSheet.kt`
-  - [ ] List all vehicles with name + ODO
-  - [ ] Trigger from TopAppBar tap
+- [x] Task 1: Vehicle selector UI (AC: #1, #4)
+  - [x] Create `app-phone/ui/components/VehicleSelectorSheet.kt`
+  - [x] List all vehicles with name + ODO
+  - [x] Trigger from TopAppBar tap
 
-- [ ] Task 2: Switch logic (AC: #2, #3, #5)
-  - [ ] Persist to DataStore
-  - [ ] Notify all screens via shared Flow
-  - [ ] VehicleHub ViewModel re-collects all data for new vehicle
+- [x] Task 2: Switch logic (AC: #2, #3, #5)
+  - [x] Persist to DataStore
+  - [x] Notify all screens via shared Flow
+  - [x] VehicleHub ViewModel re-collects all data for new vehicle
 
-- [ ] Task 3: Edge cases (AC: #6)
-  - [ ] Handle deleted vehicle gracefully
-  - [ ] Fallback to first available or empty state
+- [x] Task 3: Edge cases (AC: #6)
+  - [x] Handle deleted vehicle gracefully
+  - [x] Fallback to first available or empty state
 
 ## Dev Notes
 
@@ -56,6 +56,34 @@ val activeVehicleId: Flow<String?> = dataStore.data.map { it[ACTIVE_VEHICLE_ID] 
 ## Dev Agent Record
 
 ### Agent Model Used
+glm-5.1 (zai/glm-5.1)
+
 ### Debug Log References
+- Pre-existing test failure in FuelLogViewModelTest (unrelated to this story)
+- Pre-existing core module test failures (unrelated)
+- Pre-existing lint config issue with ui-test-junit4 (unrelated)
+
 ### Completion Notes List
+- ✅ Task 1: Created VehicleSelectorSheet.kt as ModalBottomSheet listing all vehicles with name + odometer. Integrated into VehicleHubScreen via new CenterAlignedTopAppBar with clickable vehicle name. Dropdown arrow only shown when multiple vehicles exist (AC#4).
+- ✅ Task 2: Added switchVehicle() to VehicleHubViewModel that persists to DataStore via ActiveVehicleRepository. Exposed allVehicles and activeVehicleId as StateFlows. All ViewModels already observe activeVehicleId via flatMapLatest, so switching triggers immediate data refresh across all screens (AC#2, #3, #5).
+- ✅ Task 3: Implemented handleDeletedActiveVehicle() fallback logic - when active vehicle becomes null (deleted), auto-switches to first available vehicle. If no vehicles remain, shows error state. Also handles null activeVehicleId at launch via handleMissingActiveVehicle() (AC#6).
+- ✅ All 20 hub tests pass (12 existing + 8 new switcher tests)
+
 ### File List
+- `app-phone/src/main/kotlin/com/roadmate/phone/ui/hub/VehicleSelectorSheet.kt` (NEW)
+- `app-phone/src/main/kotlin/com/roadmate/phone/ui/hub/VehicleHubScreen.kt` (MODIFIED)
+- `app-phone/src/main/kotlin/com/roadmate/phone/ui/hub/VehicleHubViewModel.kt` (MODIFIED)
+- `app-phone/src/test/kotlin/com/roadmate/phone/ui/hub/VehicleSwitcherViewModelTest.kt` (NEW)
+- `app-phone/src/test/kotlin/com/roadmate/phone/ui/hub/VehicleHubViewModelTest.kt` (MODIFIED)
+
+## Change Log
+- 2026-05-14: Implemented vehicle switcher with selector sheet, DataStore persistence, reactive switching, and deleted vehicle fallback (Story 5.6)
+- 2026-05-14: Code review — 5 patches applied, 1 deferred, 4 dismissed
+
+### Review Findings
+- [x] [Review][Patch] activeVehicleId should use stateIn instead of manual bridge [VehicleHubViewModel.kt:86-91]
+- [x] [Review][Patch] sheetState created but not connected to VehicleSelectorSheet [VehicleHubScreen.kt:88-100]
+- [x] [Review][Patch] Duplicate formatOdometerUnit across files [VehicleSelectorSheet.kt:122, VehicleHubScreen.kt:246]
+- [x] [Review][Patch] Unused @OptIn(ExperimentalCoroutinesApi::class) on handleMissingActiveVehicle [VehicleHubViewModel.kt:181]
+- [x] [Review][Patch] Weak test assertion with conditional if instead of assertTrue [VehicleSwitcherViewModelTest.kt:257]
+- [x] [Review][Defer] onVehicleManagementClick / onDocumentListClick params unused — AC#4 partial — deferred, pre-existing

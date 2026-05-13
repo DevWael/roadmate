@@ -21,10 +21,14 @@ import com.roadmate.core.util.MaintenancePredictionEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -78,13 +82,34 @@ class VehicleHubViewModel @Inject constructor(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
+    private val _allVehicles = MutableStateFlow<List<Vehicle>>(emptyList())
+    val allVehicles: StateFlow<List<Vehicle>> = _allVehicles.asStateFlow()
+
+    val activeVehicleId: StateFlow<String?> = activeVehicleRepository.activeVehicleId
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
     private var dataJob: Job? = null
     private var syncJob: Job? = null
     private val _lastSyncTimestamp = MutableStateFlow(0L)
 
     init {
+        loadAllVehicles()
         loadData()
         observeSyncResult()
+    }
+
+    private fun loadAllVehicles() {
+        viewModelScope.launch {
+            vehicleRepository.getAllVehicles().collect { vehicles ->
+                _allVehicles.value = vehicles
+            }
+        }
+    }
+
+    fun switchVehicle(vehicleId: String) {
+        viewModelScope.launch {
+            activeVehicleRepository.setActiveVehicle(vehicleId)
+        }
     }
 
     private fun observeSyncResult() {
@@ -113,7 +138,7 @@ class VehicleHubViewModel @Inject constructor(
             activeVehicleRepository.activeVehicleId
                 .flatMapLatest { vehicleId ->
                     if (vehicleId == null) {
-                        flowOf(UiState.Error("No active vehicle") as UiState<VehicleHubUiState>)
+                        handleMissingActiveVehicle()
                     } else {
                         combine(
                             vehicleRepository.getVehicle(vehicleId),
@@ -123,16 +148,41 @@ class VehicleHubViewModel @Inject constructor(
                             _lastSyncTimestamp,
                         ) { vehicle, schedules, trips, fuelLogs, lastSync ->
                             if (vehicle == null) {
-                                UiState.Error("Vehicle not found")
+                                null
                             } else {
                                 UiState.Success(
                                     buildUiState(vehicle, schedules, trips, fuelLogs, lastSync)
-                                )
+                                ) as UiState<VehicleHubUiState>
                             }
                         }
                     }
                 }
-                .collect { state -> _uiState.value = state }
+                .collect { state ->
+                    if (state == null) {
+                        handleDeletedActiveVehicle()
+                    } else {
+                        _uiState.value = state
+                    }
+                }
+        }
+    }
+
+    private suspend fun handleDeletedActiveVehicle() {
+        val vehicles = vehicleRepository.getAllVehicles().first()
+        if (vehicles.isNotEmpty()) {
+            activeVehicleRepository.setActiveVehicle(vehicles.first().id)
+        } else {
+            _uiState.value = UiState.Error("No vehicles available")
+        }
+    }
+
+    private suspend fun handleMissingActiveVehicle(): Flow<UiState<VehicleHubUiState>> {
+        val vehicles = vehicleRepository.getAllVehicles().first()
+        return if (vehicles.isNotEmpty()) {
+            activeVehicleRepository.setActiveVehicle(vehicles.first().id)
+            flowOf(UiState.Loading as UiState<VehicleHubUiState>)
+        } else {
+            flowOf(UiState.Error("No active vehicle") as UiState<VehicleHubUiState>)
         }
     }
 

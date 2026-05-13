@@ -81,6 +81,9 @@ internal fun formatOdometer(odometerKm: Double, unit: String): String {
     return "$formatted $unit"
 }
 
+internal fun formatOdometerUnit(unit: com.roadmate.core.database.entity.OdometerUnit): String =
+    if (unit == com.roadmate.core.database.entity.OdometerUnit.KM) "km" else "mi"
+
 internal fun formatSyncStatus(lastSyncTimestamp: Long, nowMs: Long = System.currentTimeMillis()): String {
     if (lastSyncTimestamp == 0L) return "Not yet synced"
     val diffMs = nowMs - lastSyncTimestamp

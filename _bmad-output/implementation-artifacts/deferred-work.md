@@ -144,3 +144,10 @@
 - **Duplicate FakeTripDao implementations across test files** — `ListFakeTripDao` and `DetailFakeTripDao` are near-identical copies in separate test files. Pre-existing test pattern; extract to shared test fixture when `:core-test` module is established.
 - **No testTag/contentDescription on TripCard for accessibility** — TripCard Row is clickable but lacks semantic `contentDescription` for screen readers. Pre-existing a11y gap across all card components; address in dedicated accessibility pass.
 
+## Deferred from: code review of story 5-5 (2026-05-14)
+
+- **GaugeArc Compact is 48dp not 36dp per spec** — Story spec calls for 36dp progress rings in MaintenanceListItem. The `GaugeArcVariant.Compact` enum value is hardcoded at 48dp in the core component. Requires adding a `Mini(36)` variant or a size-override parameter to `GaugeArc`. Core component change, out of scope for this story.
+
+## Deferred from: code review of story 5-6 (2026-05-14)
+
+- **`onVehicleManagementClick` / `onDocumentListClick` params declared but never used in VehicleHubScreen** — AC#4 says "Can navigate to vehicle management" for single-vehicle scenario, but neither callback is wired to any UI element. Pre-existing params from Story 5-2; navigation targets not yet implemented.

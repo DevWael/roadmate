@@ -20,26 +20,33 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,6 +64,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VehicleHubScreen(
     onTripListClick: () -> Unit,
@@ -71,39 +79,87 @@ fun VehicleHubScreen(
     val viewModel: VehicleHubViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val allVehicles by viewModel.allVehicles.collectAsStateWithLifecycle()
+    val activeVehicleId by viewModel.activeVehicleId.collectAsStateWithLifecycle()
 
-    when (val state = uiState) {
-        is UiState.Loading -> {
-            Box(
-                modifier = modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator()
+    var showSelector by remember { mutableStateOf(false) }
+
+    if (showSelector && allVehicles.isNotEmpty()) {
+        VehicleSelectorSheet(
+            vehicles = allVehicles,
+            activeVehicleId = activeVehicleId ?: "",
+            onVehicleSelected = { viewModel.switchVehicle(it) },
+            onDismiss = { showSelector = false },
+        )
+    }
+
+    val vehicleName = when (val state = uiState) {
+        is UiState.Success -> state.data.vehicle.name
+        else -> ""
+    }
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Row(
+                        modifier = Modifier.clickable { showSelector = true },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = vehicleName,
+                            style = MaterialTheme.typography.titleLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (allVehicles.size > 1) {
+                            Icon(
+                                imageVector = Icons.Filled.ArrowDropDown,
+                                contentDescription = "Select vehicle",
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ),
+            )
+        },
+    ) { padding ->
+        when (val state = uiState) {
+            is UiState.Loading -> {
+                Box(
+                    modifier = modifier.fillMaxSize().padding(padding),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
             }
-        }
-        is UiState.Error -> {
-            Box(
-                modifier = modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = state.message,
-                    color = MaterialTheme.colorScheme.error,
+            is UiState.Error -> {
+                Box(
+                    modifier = modifier.fillMaxSize().padding(padding),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = state.message,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+            is UiState.Success -> {
+                VehicleHubContent(
+                    uiState = state.data,
+                    isRefreshing = isRefreshing,
+                    onRefresh = { viewModel.triggerManualSync() },
+                    onTripListClick = onTripListClick,
+                    onTripClick = onTripClick,
+                    onMaintenanceListClick = onMaintenanceListClick,
+                    onMaintenanceClick = onMaintenanceClick,
+                    onFuelLogClick = onFuelLogClick,
+                    modifier = modifier.padding(padding),
                 )
             }
-        }
-        is UiState.Success -> {
-            VehicleHubContent(
-                uiState = state.data,
-                isRefreshing = isRefreshing,
-                onRefresh = { viewModel.triggerManualSync() },
-                onTripListClick = onTripListClick,
-                onTripClick = onTripClick,
-                onMaintenanceListClick = onMaintenanceListClick,
-                onMaintenanceClick = onMaintenanceClick,
-                onFuelLogClick = onFuelLogClick,
-                modifier = modifier,
-            )
         }
     }
 }
@@ -186,9 +242,6 @@ private fun VehicleHubContent(
         }
     }
 }
-
-private fun formatOdometerUnit(unit: OdometerUnit): String =
-    if (unit == OdometerUnit.KM) "km" else "mi"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
