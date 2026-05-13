@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-08T22:57:00+03:00"
-last_updated: "2026-05-14T02:05:00+03:00"
+last_updated: "2026-05-14T02:23:00+03:00"
 project: roadmate
 project_key: NOKEY
 tracking_system: file-system
@@ -97,7 +97,7 @@ development_status:
   # Epic 6: Head Unit Dashboard Polish
   epic-6: in-progress
   6-1-parkeddashboard-three-panel-layout: done
-  6-2-adaptivedashboard-and-split-screen-support: ready-for-dev
+  6-2-adaptivedashboard-and-split-screen-support: done
   6-3-head-unit-vehicle-switcher-and-dpad-navigation: ready-for-dev
   epic-6-retrospective: optional
 

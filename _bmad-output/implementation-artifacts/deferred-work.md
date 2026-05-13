@@ -158,3 +158,8 @@
 - **Duplicate `formatOdometer` function** — The same utility exists in `ParkedDashboard.kt` and `DrivingHUD.kt`. Extract into a shared utility in `:core` or the `parked` package.
 - **`material-icons-extended` heavyweight dependency** — Added for a single icon (`Icons.Filled.Refresh`). This library contains thousands of icons and increases APK size. Consider extracting needed icons as vector drawables or switching to a custom icon approach project-wide.
 - **`ContextAwareLayoutTest` has no assertions for new parameters** — The test only adds a `BtConnectionState` import but has zero assertions for `maintenanceSchedules`, `btConnectionState`, or `lastSyncTimestamp` parameters. Test coverage gap for the parked/driving transition behavior.
+
+## Deferred from: code review of story 6-2 (2026-05-14)
+
+- **CompactDrivingHUD hardcodes "km" for trip distance display** — `"${numberFormatter.format(drivingState.distanceKm)} km"` always shows "km" regardless of `vehicle.odometerUnit`. Pre-existing pattern from DrivingHUD.kt.
+- **Vehicle null yields no ODO in CompactDrivingHUD** — AC#5 "ODO always visible" technically violated when vehicle is null, but upstream guards prevent null vehicle from reaching this component.

@@ -17,8 +17,7 @@ import com.roadmate.core.database.entity.Vehicle
 import com.roadmate.core.model.BtConnectionState
 import com.roadmate.core.model.DrivingState
 import com.roadmate.core.model.GpsState
-import com.roadmate.headunit.ui.driving.DrivingHUD
-import com.roadmate.headunit.ui.parked.ParkedDashboard
+import com.roadmate.headunit.ui.adaptive.AdaptiveDashboard
 
 internal const val TRANSITION_DURATION_MS = 400
 
@@ -52,23 +51,18 @@ fun ContextAwareLayout(
             }
         },
         label = "context-aware",
-    ) { driving ->
-        if (driving && drivingState is DrivingState.Driving) {
-            DrivingHUD(
-                drivingState = drivingState,
-                vehicle = vehicle,
-                gpsState = gpsState,
-                alertMessage = alertMessage,
-            )
-        } else {
-            ParkedDashboard(
-                vehicle = vehicle,
-                trips = trips,
-                maintenanceSchedules = maintenanceSchedules,
-                btConnectionState = btConnectionState,
-                lastSyncTimestamp = lastSyncTimestamp,
-            )
-        }
+    ) { _ ->
+        AdaptiveDashboard(
+            drivingState = drivingState,
+            gpsState = gpsState,
+            vehicle = vehicle,
+            trips = trips,
+            maintenanceSchedules = maintenanceSchedules,
+            btConnectionState = btConnectionState,
+            lastSyncTimestamp = lastSyncTimestamp,
+            alertMessage = alertMessage,
+            onSwitchVehicle = onSwitchVehicle,
+        )
     }
 }
 
