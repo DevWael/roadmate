@@ -56,7 +56,11 @@ fun RoadMateNavHost(
                 composable<VehicleHub> {
                     VehicleHubScreen(
                         onTripListClick = { navController.navigate(TripList) },
+                        onTripClick = { tripId -> navController.navigate(TripDetail(tripId)) },
                         onMaintenanceListClick = { navController.navigate(MaintenanceList) },
+                        onMaintenanceClick = { scheduleId ->
+                            navController.navigate(MaintenanceDetail(scheduleId))
+                        },
                         onFuelLogClick = { navController.navigate(FuelLog) },
                         onDocumentListClick = { navController.navigate(DocumentList) },
                         onVehicleManagementClick = { navController.navigate(VehicleManagement) },

@@ -134,3 +134,7 @@
 - **NavController state lost when vehicleCount toggles >0 → 0 → >0** — `rememberNavController()` is conditionally scoped inside the `vehicleCount > 0` branch. When count drops to 0 and returns to >0, a fresh NavController is created, losing all backstack state. Pre-existing architecture gap; requires lifting NavController above the conditional.
 - **Deep-link not handled on `onNewIntent()` warm re-launch** — `MainActivity` only processes the initial intent in `onCreate()`. If the app is already running and a new deep-link intent arrives via `onNewIntent()`, it is never forwarded to `NavController.handleDeepLink()`. Requires lifecycle-aware refactor.
 - **EmptyVehicleState text alignment/padding on narrow screens** — The body text "Connect to your head unit to sync vehicle data." has no horizontal padding or center alignment. On narrow devices, the text may wrap poorly and clip against screen edges. Cosmetic.
+
+## Deferred from: code review of story 5-2 (2026-05-13)
+
+- **"See all" clickable Row lacks accessibility contentDescription** — SectionCard "See all →" link is a clickable Row without semantic `contentDescription`. Pre-existing pattern across all section cards. Address in a11y pass.
