@@ -120,3 +120,7 @@
 - **Per-entity timestamps implemented but unused** — `SyncTimestampStore.setEntityTimestamp/getEntityTimestamp` are implemented and tested but `DeltaSyncEngine.queryDeltas()` uses only the global `lastSyncTimestamp`. Dead code today, presumably intended for future per-entity-type delta queries.
 - **ConflictResolver not integrated into SyncSession** — ConflictResolver exists as standalone component with tests, but SyncSession has no incoming PUSH handler wiring. Likely Story 4-4 scope for bidirectional sync.
 - **UnackedMessageTracker.drainUnacked() non-atomic drain** — `values.toList()` followed by `clear()` on ConcurrentHashMap is technically non-atomic. Low risk since all callers are on single coroutine context.
+
+## Deferred from: code review of story 4-4 (2026-05-13)
+
+- **eventObservationJobs list not thread-safe** — `SyncTriggerManager.eventObservationJobs` uses `mutableListOf<Job>()` with no synchronization. Pre-existing pattern; lifecycle methods are called sequentially in practice. Address if multi-threaded access becomes a concern.
