@@ -1,5 +1,12 @@
 package com.roadmate.headunit.ui.parked
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,12 +17,28 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusTarget
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.roadmate.core.database.entity.MaintenanceSchedule
@@ -27,10 +50,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Refresh
 import com.roadmate.core.model.BtConnectionState
+import com.roadmate.core.model.DrivingState
 import com.roadmate.core.ui.components.GaugeArc
 import com.roadmate.core.ui.components.GaugeArcVariant
 import com.roadmate.core.ui.components.StatusChip
 import com.roadmate.core.ui.components.SyncStatusChip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.roadmate.core.ui.theme.RoadMatePrimary
 import com.roadmate.core.ui.theme.RoadMateSpacing
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -39,6 +65,7 @@ import java.util.Locale
 
 private val OuterMargin = 24.dp
 private val ColumnGap = 16.dp
+
 
 internal fun maintenancePercentage(schedule: MaintenanceSchedule, odometerKm: Double): Float {
     val interval = schedule.intervalKm ?: return 0f
@@ -66,6 +93,16 @@ internal fun sortSchedulesByUrgency(
         .take(3)
 }
 
+private val FocusRingShape = RoundedCornerShape(4.dp)
+
+private fun Modifier.focusRing(isFocused: Boolean): Modifier {
+    return if (isFocused) {
+        this.border(1.dp, RoadMatePrimary, FocusRingShape)
+    } else {
+        this
+    }
+}
+
 @Composable
 fun ParkedDashboard(
     vehicle: Vehicle?,
@@ -73,6 +110,8 @@ fun ParkedDashboard(
     maintenanceSchedules: List<MaintenanceSchedule>,
     btConnectionState: BtConnectionState,
     lastSyncTimestamp: Long,
+    onSwitchVehicle: () -> Unit,
+    drivingState: DrivingState = DrivingState.Idle,
     modifier: Modifier = Modifier,
 ) {
     if (vehicle == null) {
@@ -80,12 +119,18 @@ fun ParkedDashboard(
         return
     }
 
+    val isFocusEnabled = drivingState is DrivingState.Idle
+
     val numberFormatter = remember { NumberFormat.getNumberInstance(Locale.getDefault()) }
     val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
     val recentTrips = remember(trips) { trips.sortedByDescending { it.startTime }.take(5) }
     val urgentMaintenance = remember(maintenanceSchedules, vehicle.odometerKm) {
         sortSchedulesByUrgency(maintenanceSchedules, vehicle.odometerKm)
     }
+
+    val vehicleNameRequester = remember { FocusRequester() }
+    val tripRequesters = remember(recentTrips) { recentTrips.map { FocusRequester() } }
+    val gaugeRequesters = remember(urgentMaintenance) { urgentMaintenance.map { FocusRequester() } }
 
     Row(
         modifier = modifier
@@ -98,6 +143,10 @@ fun ParkedDashboard(
             btConnectionState = btConnectionState,
             lastSyncTimestamp = lastSyncTimestamp,
             numberFormatter = numberFormatter,
+            onSwitchVehicle = onSwitchVehicle,
+            isFocusEnabled = isFocusEnabled,
+            focusRequester = vehicleNameRequester,
+            nextRight = tripRequesters.firstOrNull(),
             modifier = Modifier.weight(1f),
         )
 
@@ -105,12 +154,19 @@ fun ParkedDashboard(
             trips = recentTrips,
             numberFormatter = numberFormatter,
             dateFormatter = dateFormatter,
+            isFocusEnabled = isFocusEnabled,
+            tripRequesters = tripRequesters,
+            nextRight = gaugeRequesters.firstOrNull(),
+            nextLeft = vehicleNameRequester,
             modifier = Modifier.weight(1f),
         )
 
         RightPanel(
             schedules = urgentMaintenance,
             odometerKm = vehicle.odometerKm,
+            isFocusEnabled = isFocusEnabled,
+            gaugeRequesters = gaugeRequesters,
+            nextLeft = tripRequesters.lastOrNull(),
             modifier = Modifier.weight(1f),
         )
     }
@@ -122,15 +178,35 @@ private fun LeftPanel(
     btConnectionState: BtConnectionState,
     lastSyncTimestamp: Long,
     numberFormatter: NumberFormat,
+    onSwitchVehicle: () -> Unit,
+    isFocusEnabled: Boolean,
+    focusRequester: FocusRequester,
+    nextRight: FocusRequester?,
     modifier: Modifier = Modifier,
 ) {
+    var isVehicleNameFocused by remember { mutableStateOf(false) }
+
+    val vehicleNameModifier = if (isFocusEnabled) {
+        Modifier
+            .focusRequester(focusRequester)
+            .focusProperties {
+                right = nextRight ?: FocusRequester.Default
+            }
+            .focusTarget()
+            .focusable()
+            .onFocusChanged { isVehicleNameFocused = it.isFocused }
+            .focusRing(isVehicleNameFocused)
+    } else {
+        Modifier
+    }
+
     Column(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = formatOdometer(vehicle.odometerKm, vehicle.odometerUnit, numberFormatter),
+            text = formatOdometerDisplay(vehicle.odometerKm, vehicle.odometerUnit, numberFormatter),
             style = MaterialTheme.typography.displayLarge.copy(
                 fontWeight = FontWeight.Bold,
             ),
@@ -162,6 +238,9 @@ private fun LeftPanel(
             text = vehicle.name,
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onSurface,
+            modifier = vehicleNameModifier
+                .clickable(onClick = onSwitchVehicle)
+                .padding(horizontal = RoadMateSpacing.md, vertical = RoadMateSpacing.xs),
         )
     }
 }
@@ -217,6 +296,10 @@ private fun CenterPanel(
     trips: List<Trip>,
     numberFormatter: NumberFormat,
     dateFormatter: SimpleDateFormat,
+    isFocusEnabled: Boolean,
+    tripRequesters: List<FocusRequester>,
+    nextRight: FocusRequester?,
+    nextLeft: FocusRequester?,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -245,11 +328,19 @@ private fun CenterPanel(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(RoadMateSpacing.sm),
             ) {
-                items(trips, key = { it.id }) { trip ->
-                    TripCard(
+                itemsIndexed(trips, key = { _, t -> t.id }) { index, trip ->
+                    val requester = tripRequesters.getOrNull(index)
+                    val nextDown = tripRequesters.getOrNull(index + 1)
+                    val isLast = index == trips.lastIndex
+                    FocusableTripCard(
                         trip = trip,
                         numberFormatter = numberFormatter,
                         dateFormatter = dateFormatter,
+                        isFocusEnabled = isFocusEnabled,
+                        focusRequester = requester,
+                        nextDown = nextDown,
+                        nextRight = if (isLast) nextRight else null,
+                        nextLeft = if (isLast) nextLeft else null,
                     )
                 }
             }
@@ -258,14 +349,47 @@ private fun CenterPanel(
 }
 
 @Composable
-private fun TripCard(
+private fun FocusableTripCard(
     trip: Trip,
     numberFormatter: NumberFormat,
     dateFormatter: SimpleDateFormat,
+    isFocusEnabled: Boolean,
+    focusRequester: FocusRequester?,
+    nextDown: FocusRequester?,
+    nextRight: FocusRequester?,
+    nextLeft: FocusRequester?,
 ) {
-    androidx.compose.material3.Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = androidx.compose.material3.CardDefaults.cardColors(
+    var isFocused by remember { mutableStateOf(false) }
+    var isExpanded by remember { mutableStateOf(false) }
+
+    val focusModifier = if (isFocusEnabled && focusRequester != null) {
+        Modifier
+            .focusRequester(focusRequester)
+            .focusProperties {
+                down = nextDown ?: FocusRequester.Default
+                right = nextRight ?: FocusRequester.Default
+                left = nextLeft ?: FocusRequester.Default
+            }
+            .focusTarget()
+            .focusable()
+            .onFocusChanged { isFocused = it.isFocused }
+            .focusRing(isFocused)
+            .onKeyEvent { event ->
+                if (event.key == Key.DirectionCenter && event.type == KeyEventType.KeyUp) {
+                    isExpanded = !isExpanded
+                    true
+                } else false
+            }
+    } else {
+        Modifier
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(focusModifier)
+            .clickable { isExpanded = !isExpanded },
+        colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ),
     ) {
@@ -301,6 +425,17 @@ private fun TripCard(
                 TripMetric(label = "Distance", value = "${numberFormatter.format(trip.distanceKm)} km")
                 TripMetric(label = "Duration", value = formatDuration(trip.durationMs))
             }
+
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically(),
+                exit = shrinkVertically(),
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(RoadMateSpacing.sm))
+                    TripMetric(label = "Avg Speed", value = "${numberFormatter.format(trip.avgSpeedKmh)} km/h")
+                }
+            }
         }
     }
 }
@@ -325,6 +460,9 @@ private fun TripMetric(label: String, value: String) {
 private fun RightPanel(
     schedules: List<MaintenanceSchedule>,
     odometerKm: Double,
+    isFocusEnabled: Boolean,
+    gaugeRequesters: List<FocusRequester>,
+    nextLeft: FocusRequester?,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -353,47 +491,104 @@ private fun RightPanel(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(RoadMateSpacing.lg),
             ) {
-                schedules.forEach { schedule ->
+                schedules.forEachIndexed { index, schedule ->
                     val percentage = maintenancePercentage(schedule, odometerKm)
                     val remaining = remainingKm(schedule, odometerKm)
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        GaugeArc(
-                            percentage = percentage,
-                            variant = GaugeArcVariant.Compact,
-                            itemName = schedule.name,
-                            remainingKm = remaining,
-                        )
-                        Spacer(modifier = Modifier.height(RoadMateSpacing.xs))
-                        Text(
-                            text = schedule.name,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
+                    val requester = gaugeRequesters.getOrNull(index)
+                    FocusableGaugeItem(
+                        scheduleName = schedule.name,
+                        percentage = percentage,
+                        remainingKm = remaining,
+                        isFocusEnabled = isFocusEnabled,
+                        focusRequester = requester,
+                        nextDown = gaugeRequesters.getOrNull(index + 1),
+                        nextLeft = if (index == schedules.lastIndex) nextLeft else null,
+                    )
                 }
             }
         }
     }
 }
 
-private fun formatOdometer(
-    odometerKm: Double,
-    unit: OdometerUnit,
-    formatter: NumberFormat,
-): String {
-    val displayValue = when (unit) {
-        OdometerUnit.KM -> odometerKm
-        OdometerUnit.MILES -> odometerKm * 0.621371
+@Composable
+private fun FocusableGaugeItem(
+    scheduleName: String,
+    percentage: Float,
+    remainingKm: Double,
+    isFocusEnabled: Boolean,
+    focusRequester: FocusRequester?,
+    nextDown: FocusRequester?,
+    nextLeft: FocusRequester?,
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    var isExpanded by remember { mutableStateOf(false) }
+
+    val focusModifier = if (isFocusEnabled && focusRequester != null) {
+        Modifier
+            .focusRequester(focusRequester)
+            .focusProperties {
+                down = nextDown ?: FocusRequester.Default
+                left = nextLeft ?: FocusRequester.Default
+            }
+            .focusTarget()
+            .focusable()
+            .onFocusChanged { isFocused = it.isFocused }
+            .focusRing(isFocused)
+            .onKeyEvent { event ->
+                if (event.key == Key.DirectionCenter && event.type == KeyEventType.KeyUp) {
+                    isExpanded = !isExpanded
+                    true
+                } else false
+            }
+    } else {
+        Modifier
     }
-    val suffix = when (unit) {
-        OdometerUnit.KM -> " km"
-        OdometerUnit.MILES -> " mi"
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(focusModifier)
+            .clickable { isExpanded = !isExpanded }
+            .padding(RoadMateSpacing.sm),
+    ) {
+        GaugeArc(
+            percentage = percentage,
+            variant = GaugeArcVariant.Compact,
+            itemName = scheduleName,
+            remainingKm = remainingKm,
+        )
+        Spacer(modifier = Modifier.height(RoadMateSpacing.xs))
+        Text(
+            text = scheduleName,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        AnimatedVisibility(
+            visible = isExpanded,
+            enter = expandVertically(),
+            exit = shrinkVertically(),
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(top = RoadMateSpacing.xs),
+            ) {
+                Text(
+                    text = "${scheduleName}: ${percentage.toInt()}% used",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "${Math.round(remainingKm)} km remaining",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
-    return "${formatter.format(Math.round(displayValue))}$suffix"
 }
+
+
 
 @Composable
 private fun NoVehiclePlaceholder() {

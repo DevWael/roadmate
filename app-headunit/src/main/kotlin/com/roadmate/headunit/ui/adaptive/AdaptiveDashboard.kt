@@ -76,6 +76,8 @@ fun AdaptiveDashboard(
                 btConnectionState = btConnectionState,
                 lastSyncTimestamp = lastSyncTimestamp,
                 breakpoint = breakpoint,
+                onSwitchVehicle = onSwitchVehicle,
+                drivingState = drivingState,
             )
         }
     }
@@ -143,6 +145,8 @@ private fun AdaptiveParkedLayout(
     btConnectionState: BtConnectionState,
     lastSyncTimestamp: Long,
     breakpoint: DashboardBreakpoint,
+    onSwitchVehicle: () -> Unit,
+    drivingState: DrivingState,
 ) {
     when (breakpoint) {
         DashboardBreakpoint.Full -> {
@@ -152,6 +156,8 @@ private fun AdaptiveParkedLayout(
                 maintenanceSchedules = maintenanceSchedules,
                 btConnectionState = btConnectionState,
                 lastSyncTimestamp = lastSyncTimestamp,
+                onSwitchVehicle = onSwitchVehicle,
+                drivingState = drivingState,
             )
         }
         DashboardBreakpoint.Compact -> {
@@ -161,6 +167,8 @@ private fun AdaptiveParkedLayout(
                 maintenanceSchedules = maintenanceSchedules,
                 btConnectionState = btConnectionState,
                 lastSyncTimestamp = lastSyncTimestamp,
+                onSwitchVehicle = onSwitchVehicle,
+                drivingState = drivingState,
             )
         }
         DashboardBreakpoint.Narrow -> {
