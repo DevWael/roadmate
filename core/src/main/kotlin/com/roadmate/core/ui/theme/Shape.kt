@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.dp
  */
 object RoadMateCorners {
     val card: Dp = 4.dp
+    val panel: Dp = 8.dp
 }
 
 /**

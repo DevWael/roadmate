@@ -8,6 +8,11 @@ val RoadMateSurface = Color(0xFF0A0A0A)
 val RoadMateSurfaceVariant = Color(0xFF1A1A1A)
 val RoadMateSurfaceContainer = Color(0xFF121212)
 
+// ── Panel (cockpit instrument containers) ───────────────────────────
+val RoadMatePanelBackground = Color(0xFF121212)
+val RoadMatePanelBorder = Color(0xFF1E1E1E)
+val RoadMatePanelDivider = Color(0xFF2A2A2A)
+
 // ── Accent ──────────────────────────────────────────────────────────
 val RoadMatePrimary = Color(0xFF4FC3F7)
 val RoadMateSecondary = Color(0xFF80CBC4)

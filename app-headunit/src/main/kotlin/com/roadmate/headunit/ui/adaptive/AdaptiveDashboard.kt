@@ -41,6 +41,8 @@ import com.roadmate.headunit.ui.parked.remainingKm
 import com.roadmate.headunit.ui.parked.sortSchedulesByUrgency
 import java.text.NumberFormat
 import java.util.Locale
+import com.roadmate.headunit.ui.components.CockpitPanel
+import com.roadmate.headunit.ui.components.PanelDivider
 
 @Composable
 fun AdaptiveDashboard(
@@ -180,6 +182,7 @@ private fun AdaptiveParkedLayout(
     }
 }
 
+
 @Composable
 private fun NarrowParkedLayout(
     vehicle: Vehicle?,
@@ -205,77 +208,88 @@ private fun NarrowParkedLayout(
         sortSchedulesByUrgency(maintenanceSchedules, vehicle.odometerKm)
     }
 
-    LazyColumn(
+    Column(
         modifier = modifier
             .fillMaxSize()
             .padding(RoadMateSpacing.lg),
-        verticalArrangement = Arrangement.spacedBy(RoadMateSpacing.md),
     ) {
-        item {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
+        CockpitPanel(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(RoadMateSpacing.md),
             ) {
-                Text(
-                    text = com.roadmate.headunit.ui.driving.formatOdometer(
-                        vehicle.odometerKm,
-                        vehicle.odometerUnit,
-                        numberFormatter,
-                    ),
-                    style = MaterialTheme.typography.displayLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                item {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = com.roadmate.headunit.ui.driving.formatOdometer(
+                                vehicle.odometerKm,
+                                vehicle.odometerUnit,
+                                numberFormatter,
+                            ),
+                            style = MaterialTheme.typography.displayLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
 
-                Spacer(modifier = Modifier.height(RoadMateSpacing.xs))
+                        Spacer(modifier = Modifier.height(RoadMateSpacing.xs))
 
-                Text(
-                    text = "odometer",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                        Text(
+                            text = "odometer",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
 
-                Spacer(modifier = Modifier.height(RoadMateSpacing.sm))
+                        Spacer(modifier = Modifier.height(RoadMateSpacing.sm))
 
-                Text(
-                    text = vehicle.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-        }
+                        Text(
+                            text = vehicle.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
 
-        if (urgentMaintenance.isNotEmpty()) {
-            item {
-                Text(
-                    text = "Maintenance",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
+                if (urgentMaintenance.isNotEmpty()) {
+                    item {
+                        PanelDivider()
+                    }
 
-            items(urgentMaintenance, key = { it.id }) { schedule ->
-                val percentage = maintenancePercentage(schedule, vehicle.odometerKm)
-                val remaining = remainingKm(schedule, vehicle.odometerKm)
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    GaugeArc(
-                        percentage = percentage,
-                        variant = GaugeArcVariant.Compact,
-                        itemName = schedule.name,
-                        remainingKm = remaining,
-                    )
-                    Spacer(modifier = Modifier.height(RoadMateSpacing.xs))
-                    Text(
-                        text = schedule.name,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
+                    item {
+                        Text(
+                            text = "Maintenance",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+
+                    items(urgentMaintenance, key = { it.id }) { schedule ->
+                        val percentage = maintenancePercentage(schedule, vehicle.odometerKm)
+                        val remaining = remainingKm(schedule, vehicle.odometerKm)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            GaugeArc(
+                                percentage = percentage,
+                                variant = GaugeArcVariant.Compact,
+                                itemName = schedule.name,
+                                remainingKm = remaining,
+                            )
+                            Spacer(modifier = Modifier.height(RoadMateSpacing.xs))
+                            Text(
+                                text = schedule.name,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 }
+

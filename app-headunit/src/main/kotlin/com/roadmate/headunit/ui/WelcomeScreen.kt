@@ -29,6 +29,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.roadmate.core.model.UiState
 import com.roadmate.core.ui.theme.RoadMateSpacing
 import com.roadmate.headunit.R
+import com.roadmate.headunit.ui.components.CockpitPanel
+import com.roadmate.headunit.ui.components.PanelDivider
 import com.roadmate.headunit.viewmodel.WelcomeFormState
 import com.roadmate.headunit.viewmodel.WelcomeViewModel
 
@@ -113,66 +115,86 @@ private fun WelcomeForm(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = stringResource(R.string.welcome_title),
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-
-        Spacer(modifier = Modifier.height(RoadMateSpacing.xxxl))
-
-        OutlinedTextField(
-            value = form.name,
-            onValueChange = onNameChange,
-            label = { Text(text = stringResource(R.string.welcome_vehicle_name)) },
-            isError = form.errors.containsKey("name"),
-            supportingText = form.errors["name"]?.let {
-                { Text(text = it, color = MaterialTheme.colorScheme.error) }
-            },
+        CockpitPanel(
             modifier = Modifier
-                .fillMaxWidth(0.6f)
-                .heightIn(min = MinTouchTarget + 24.dp),
-            textStyle = MaterialTheme.typography.bodyLarge,
-            singleLine = true,
-            colors = OutlinedTextFieldDefaults.colors(),
-        )
-
-        Spacer(modifier = Modifier.height(RoadMateSpacing.lg))
-
-        OutlinedTextField(
-            value = form.odometer,
-            onValueChange = onOdometerChange,
-            label = { Text(text = stringResource(R.string.welcome_odometer_label)) },
-            isError = form.errors.containsKey("odometer"),
-            supportingText = form.errors["odometer"]?.let {
-                { Text(text = it, color = MaterialTheme.colorScheme.error) }
-            },
-            modifier = Modifier
-                .fillMaxWidth(0.6f)
-                .heightIn(min = MinTouchTarget + 24.dp),
-            textStyle = MaterialTheme.typography.bodyLarge,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
-            colors = OutlinedTextFieldDefaults.colors(),
-        )
-
-        Spacer(modifier = Modifier.height(RoadMateSpacing.xxxl))
-
-        Button(
-            onClick = onStartTracking,
-            modifier = Modifier
-                .fillMaxWidth(0.6f)
-                .height(MinTouchTarget),
-            enabled = form.name.isNotBlank() && form.odometer.isNotBlank(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-            ),
+                .fillMaxWidth(0.7f),
         ) {
-            Text(
-                text = stringResource(R.string.welcome_start_tracking),
-                style = MaterialTheme.typography.titleMedium,
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(RoadMateSpacing.xl),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = stringResource(R.string.welcome_title),
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+
+                Spacer(modifier = Modifier.height(RoadMateSpacing.lg))
+
+                PanelDivider()
+
+                Spacer(modifier = Modifier.height(RoadMateSpacing.xxl))
+
+                OutlinedTextField(
+                    value = form.name,
+                    onValueChange = onNameChange,
+                    label = { Text(text = stringResource(R.string.welcome_vehicle_name)) },
+                    isError = form.errors.containsKey("name"),
+                    supportingText = form.errors["name"]?.let {
+                        { Text(text = it, color = MaterialTheme.colorScheme.error) }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = MinTouchTarget + 24.dp),
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(),
+                )
+
+                Spacer(modifier = Modifier.height(RoadMateSpacing.lg))
+
+                OutlinedTextField(
+                    value = form.odometer,
+                    onValueChange = onOdometerChange,
+                    label = { Text(text = stringResource(R.string.welcome_odometer_label)) },
+                    isError = form.errors.containsKey("odometer"),
+                    supportingText = form.errors["odometer"]?.let {
+                        { Text(text = it, color = MaterialTheme.colorScheme.error) }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = MinTouchTarget + 24.dp),
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(),
+                )
+
+                Spacer(modifier = Modifier.height(RoadMateSpacing.xxl))
+
+                PanelDivider()
+
+                Spacer(modifier = Modifier.height(RoadMateSpacing.xl))
+
+                Button(
+                    onClick = onStartTracking,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(MinTouchTarget),
+                    enabled = form.name.isNotBlank() && form.odometer.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                    ),
+                ) {
+                    Text(
+                        text = stringResource(R.string.welcome_start_tracking),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+            }
         }
     }
 }
-

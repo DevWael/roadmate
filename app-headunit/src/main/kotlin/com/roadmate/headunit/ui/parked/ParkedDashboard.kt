@@ -3,7 +3,6 @@ package com.roadmate.headunit.ui.parked
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -15,11 +14,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -57,7 +54,10 @@ import com.roadmate.core.ui.components.StatusChip
 import com.roadmate.core.ui.components.SyncStatusChip
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.roadmate.core.ui.theme.RoadMatePrimary
+import com.roadmate.core.ui.theme.RoadMatePanelDivider
 import com.roadmate.core.ui.theme.RoadMateSpacing
+import com.roadmate.headunit.ui.components.CockpitPanel
+import com.roadmate.headunit.ui.components.PanelDivider
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -138,42 +138,45 @@ fun ParkedDashboard(
             .padding(OuterMargin),
         horizontalArrangement = Arrangement.spacedBy(ColumnGap),
     ) {
-        LeftPanel(
-            vehicle = vehicle,
-            btConnectionState = btConnectionState,
-            lastSyncTimestamp = lastSyncTimestamp,
-            numberFormatter = numberFormatter,
-            onSwitchVehicle = onSwitchVehicle,
-            isFocusEnabled = isFocusEnabled,
-            focusRequester = vehicleNameRequester,
-            nextRight = tripRequesters.firstOrNull(),
-            modifier = Modifier.weight(1f),
-        )
+        CockpitPanel(modifier = Modifier.weight(1f)) {
+            LeftPanelContent(
+                vehicle = vehicle,
+                btConnectionState = btConnectionState,
+                lastSyncTimestamp = lastSyncTimestamp,
+                numberFormatter = numberFormatter,
+                onSwitchVehicle = onSwitchVehicle,
+                isFocusEnabled = isFocusEnabled,
+                focusRequester = vehicleNameRequester,
+                nextRight = tripRequesters.firstOrNull(),
+            )
+        }
 
-        CenterPanel(
-            trips = recentTrips,
-            numberFormatter = numberFormatter,
-            dateFormatter = dateFormatter,
-            isFocusEnabled = isFocusEnabled,
-            tripRequesters = tripRequesters,
-            nextRight = gaugeRequesters.firstOrNull(),
-            nextLeft = vehicleNameRequester,
-            modifier = Modifier.weight(1f),
-        )
+        CockpitPanel(modifier = Modifier.weight(1f)) {
+            CenterPanelContent(
+                trips = recentTrips,
+                numberFormatter = numberFormatter,
+                dateFormatter = dateFormatter,
+                isFocusEnabled = isFocusEnabled,
+                tripRequesters = tripRequesters,
+                nextRight = gaugeRequesters.firstOrNull(),
+                nextLeft = vehicleNameRequester,
+            )
+        }
 
-        RightPanel(
-            schedules = urgentMaintenance,
-            odometerKm = vehicle.odometerKm,
-            isFocusEnabled = isFocusEnabled,
-            gaugeRequesters = gaugeRequesters,
-            nextLeft = tripRequesters.lastOrNull(),
-            modifier = Modifier.weight(1f),
-        )
+        CockpitPanel(modifier = Modifier.weight(1f)) {
+            RightPanelContent(
+                schedules = urgentMaintenance,
+                odometerKm = vehicle.odometerKm,
+                isFocusEnabled = isFocusEnabled,
+                gaugeRequesters = gaugeRequesters,
+                nextLeft = tripRequesters.lastOrNull(),
+            )
+        }
     }
 }
 
 @Composable
-private fun LeftPanel(
+private fun LeftPanelContent(
     vehicle: Vehicle,
     btConnectionState: BtConnectionState,
     lastSyncTimestamp: Long,
@@ -182,7 +185,6 @@ private fun LeftPanel(
     isFocusEnabled: Boolean,
     focusRequester: FocusRequester,
     nextRight: FocusRequester?,
-    modifier: Modifier = Modifier,
 ) {
     var isVehicleNameFocused by remember { mutableStateOf(false) }
 
@@ -201,7 +203,7 @@ private fun LeftPanel(
     }
 
     Column(
-        modifier = modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -213,13 +215,17 @@ private fun LeftPanel(
             color = MaterialTheme.colorScheme.onSurface,
         )
 
-        Spacer(modifier = Modifier.height(RoadMateSpacing.sm))
+        Spacer(modifier = Modifier.height(RoadMateSpacing.xs))
 
         Text(
             text = "odometer",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        Spacer(modifier = Modifier.height(RoadMateSpacing.xl))
+
+        PanelDivider()
 
         Spacer(modifier = Modifier.height(RoadMateSpacing.lg))
 
@@ -232,7 +238,11 @@ private fun LeftPanel(
             lastSyncTimestamp = lastSyncTimestamp,
         )
 
-        Spacer(modifier = Modifier.height(RoadMateSpacing.xl))
+        Spacer(modifier = Modifier.height(RoadMateSpacing.lg))
+
+        PanelDivider()
+
+        Spacer(modifier = Modifier.height(RoadMateSpacing.lg))
 
         Text(
             text = vehicle.name,
@@ -292,7 +302,7 @@ private fun SyncStatusChipFromBt(
 }
 
 @Composable
-private fun CenterPanel(
+private fun CenterPanelContent(
     trips: List<Trip>,
     numberFormatter: NumberFormat,
     dateFormatter: SimpleDateFormat,
@@ -300,14 +310,17 @@ private fun CenterPanel(
     tripRequesters: List<FocusRequester>,
     nextRight: FocusRequester?,
     nextLeft: FocusRequester?,
-    modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize()) {
         Text(
             text = "Recent Trips",
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
+
+        Spacer(modifier = Modifier.height(RoadMateSpacing.sm))
+
+        PanelDivider()
 
         Spacer(modifier = Modifier.height(RoadMateSpacing.md))
 
@@ -326,13 +339,13 @@ private fun CenterPanel(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(RoadMateSpacing.sm),
+                verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
                 itemsIndexed(trips, key = { _, t -> t.id }) { index, trip ->
                     val requester = tripRequesters.getOrNull(index)
                     val nextDown = tripRequesters.getOrNull(index + 1)
                     val isLast = index == trips.lastIndex
-                    FocusableTripCard(
+                    FocusableTripRow(
                         trip = trip,
                         numberFormatter = numberFormatter,
                         dateFormatter = dateFormatter,
@@ -342,14 +355,21 @@ private fun CenterPanel(
                         nextRight = if (isLast) nextRight else null,
                         nextLeft = if (isLast) nextLeft else null,
                     )
+                    if (!isLast) {
+                        PanelDivider(modifier = Modifier.padding(vertical = RoadMateSpacing.xs))
+                    }
                 }
             }
         }
     }
 }
 
+/**
+ * Trip row — instrument-readout style with dividers instead of cards.
+ * Date on left, distance in teal on right, duration in gray.
+ */
 @Composable
-private fun FocusableTripCard(
+private fun FocusableTripRow(
     trip: Trip,
     numberFormatter: NumberFormat,
     dateFormatter: SimpleDateFormat,
@@ -384,93 +404,97 @@ private fun FocusableTripCard(
         Modifier
     }
 
-    Card(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .then(focusModifier)
-            .clickable { isExpanded = !isExpanded },
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
+            .clickable { isExpanded = !isExpanded }
+            .padding(vertical = RoadMateSpacing.sm, horizontal = RoadMateSpacing.xs),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(RoadMateSpacing.lg),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
+            // Date + status on the left
+            Column {
                 Text(
                     text = dateFormatter.format(Date(trip.startTime)),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (trip.status == TripStatus.INTERRUPTED) {
                     Text(
                         text = "\u26A1 Interrupted",
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.tertiary,
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(RoadMateSpacing.sm))
-
+            // Distance + duration on the right
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "${numberFormatter.format(trip.distanceKm)} km",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(modifier = Modifier.width(RoadMateSpacing.lg))
+                Text(
+                    text = formatDuration(trip.durationMs),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = isExpanded,
+            enter = expandVertically(),
+            exit = shrinkVertically(),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = RoadMateSpacing.xs),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                TripMetric(label = "Distance", value = "${numberFormatter.format(trip.distanceKm)} km")
-                TripMetric(label = "Duration", value = formatDuration(trip.durationMs))
-            }
-
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = expandVertically(),
-                exit = shrinkVertically(),
-            ) {
-                Column {
-                    Spacer(modifier = Modifier.height(RoadMateSpacing.sm))
-                    TripMetric(label = "Avg Speed", value = "${numberFormatter.format(trip.avgSpeedKmh)} km/h")
-                }
+                Text(
+                    text = "Avg Speed",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "${numberFormatter.format(trip.avgSpeedKmh)} km/h",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun TripMetric(label: String, value: String) {
-    Column {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-    }
-}
-
-@Composable
-private fun RightPanel(
+private fun RightPanelContent(
     schedules: List<MaintenanceSchedule>,
     odometerKm: Double,
     isFocusEnabled: Boolean,
     gaugeRequesters: List<FocusRequester>,
     nextLeft: FocusRequester?,
-    modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize()) {
         Text(
             text = "Maintenance",
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
+
+        Spacer(modifier = Modifier.height(RoadMateSpacing.sm))
+
+        PanelDivider()
 
         Spacer(modifier = Modifier.height(RoadMateSpacing.md))
 
@@ -489,7 +513,7 @@ private fun RightPanel(
         } else {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(RoadMateSpacing.lg),
+                verticalArrangement = Arrangement.spacedBy(RoadMateSpacing.sm),
             ) {
                 schedules.forEachIndexed { index, schedule ->
                     val percentage = maintenancePercentage(schedule, odometerKm)
@@ -504,6 +528,9 @@ private fun RightPanel(
                         nextDown = gaugeRequesters.getOrNull(index + 1),
                         nextLeft = if (index == schedules.lastIndex) nextLeft else null,
                     )
+                    if (index < schedules.lastIndex) {
+                        PanelDivider()
+                    }
                 }
             }
         }
