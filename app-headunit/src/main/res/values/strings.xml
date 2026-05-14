@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">RoadMate</string>
+    <string name="app_name">RoadMate HU</string>
     <string name="welcome_title">Welcome to RoadMate</string>
     <string name="welcome_vehicle_name">Vehicle Name</string>
     <string name="welcome_odometer_label">Odometer (km)</string>

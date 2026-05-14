@@ -12,17 +12,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.roadmate.core.model.UiState
 import com.roadmate.core.ui.theme.RoadMateTheme
+import com.roadmate.headunit.service.RoadMateService
 import com.roadmate.headunit.ui.ContextAwareLayout
 import com.roadmate.headunit.ui.WelcomeContent
 import com.roadmate.headunit.ui.parked.VehicleSetupContent
 import com.roadmate.headunit.ui.parked.VehicleSwitcherDialog
+import com.roadmate.headunit.ui.permissions.BluetoothPermissionEffect
+import com.roadmate.headunit.ui.permissions.LocationPermissionEffect
+import com.roadmate.headunit.ui.permissions.hasLocationPermission
 import com.roadmate.headunit.viewmodel.VehicleSetupViewModel
 import com.roadmate.headunit.viewmodel.WelcomeViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import timber.log.Timber
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -117,6 +123,31 @@ fun RoadMateMainScreen() {
             )
         }
         else -> {
+            val context = LocalContext.current
+            var locationPermissionChecked by remember { mutableStateOf(hasLocationPermission(context)) }
+
+            // Request location permission when dashboard first loads
+            if (!locationPermissionChecked) {
+                LocationPermissionEffect { granted ->
+                    locationPermissionChecked = true
+                    if (granted) {
+                        Timber.i("Location permission granted, starting service")
+                        try {
+                            RoadMateService.start(context)
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to start RoadMateService after permission grant")
+                        }
+                    } else {
+                        Timber.w("Location permission denied")
+                    }
+                }
+            }
+
+            // Request bluetooth permission for sync
+            BluetoothPermissionEffect { granted ->
+                Timber.i("Bluetooth permission result: granted=$granted")
+            }
+
             ContextAwareLayout(
                 drivingState = drivingState,
                 gpsState = gpsState,

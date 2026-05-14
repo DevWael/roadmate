@@ -105,7 +105,11 @@ class WelcomeViewModel @Inject constructor(
                         Timber.w(e, "Failed to set active vehicle ${vehicle.id}")
                     }
                     try {
-                        RoadMateService.start(application)
+                        if (com.roadmate.headunit.ui.permissions.hasLocationPermission(application)) {
+                            RoadMateService.start(application)
+                        } else {
+                            Timber.i("Location permission not granted yet, deferring service start")
+                        }
                     } catch (e: Exception) {
                         Timber.w(e, "Failed to start RoadMateService")
                     }

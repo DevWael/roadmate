@@ -32,7 +32,11 @@ class BootReceiver : BroadcastReceiver() {
                     Timber.e(e, "BootReceiver: crash recovery failed")
                 } finally {
                     try {
-                        RoadMateService.start(context)
+                        if (com.roadmate.headunit.ui.permissions.hasLocationPermission(context)) {
+                            RoadMateService.start(context)
+                        } else {
+                            Timber.w("Location permission not granted, skipping service start on boot")
+                        }
                     } catch (e: Exception) {
                         Timber.e(e, "Failed to start RoadMateService on boot")
                     }
