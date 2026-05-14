@@ -1,5 +1,6 @@
 package com.roadmate.core.location
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.location.Location
 import android.location.LocationListener
@@ -14,6 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@SuppressLint("MissingPermission")
 @Singleton
 class PlatformLocationProvider @Inject constructor(
     @ApplicationContext private val context: Context,

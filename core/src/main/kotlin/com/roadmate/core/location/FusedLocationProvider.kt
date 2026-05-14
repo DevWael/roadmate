@@ -1,5 +1,6 @@
 package com.roadmate.core.location
 
+import android.annotation.SuppressLint
 import android.location.Location
 import android.os.HandlerThread
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -15,6 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@SuppressLint("MissingPermission")
 @Singleton
 class FusedLocationProvider @Inject constructor(
     private val fusedClient: FusedLocationProviderClient,

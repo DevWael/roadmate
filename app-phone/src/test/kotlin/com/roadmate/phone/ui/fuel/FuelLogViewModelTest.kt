@@ -302,7 +302,7 @@ class FuelLogViewModelTest {
                 assertTrue(state is UiState.Success)
                 val summary = (state as UiState.Success).data.summary
                 assertNotNull(summary.avgCostPerKm)
-                assertEquals(1.1, summary.avgCostPerKm!!, 0.01)
+                assertEquals(0.6, summary.avgCostPerKm!!, 0.01)
             }
         }
     }

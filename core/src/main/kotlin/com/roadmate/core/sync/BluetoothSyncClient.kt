@@ -1,5 +1,6 @@
 package com.roadmate.core.sync
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothSocket
 import kotlinx.coroutines.CoroutineDispatcher
@@ -11,6 +12,7 @@ import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@SuppressLint("MissingPermission")
 @Singleton
 class BluetoothSyncClient(
     private val adapter: BluetoothAdapter?,

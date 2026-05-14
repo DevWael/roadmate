@@ -39,6 +39,7 @@ fun ContextAwareLayout(
 
     val isDriving = drivingState is DrivingState.Driving
 
+    @Suppress("UNUSED_ANONYMOUS_PARAMETER")
     AnimatedContent(
         targetState = isDriving,
         modifier = modifier,
@@ -51,9 +52,9 @@ fun ContextAwareLayout(
             }
         },
         label = "context-aware",
-    ) { _ ->
+    ) { targetState ->
         AdaptiveDashboard(
-            drivingState = drivingState,
+            drivingState = if (targetState) drivingState else DrivingState.Idle,
             gpsState = gpsState,
             vehicle = vehicle,
             trips = trips,

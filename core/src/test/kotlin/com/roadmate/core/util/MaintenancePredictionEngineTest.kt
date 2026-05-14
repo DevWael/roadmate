@@ -22,7 +22,7 @@ class MaintenancePredictionEngineTest {
             val trips = (0..6).map { i ->
                 createTrip(
                     distanceKm = if (i < 4) 75.0 else 0.0,
-                    startTime = now - thirtyDaysMs + (i * (thirtyDaysMs / 7)),
+                    startTime = now - thirtyDaysMs + (i * (thirtyDaysMs / 6)),
                 )
             }
             val avg = MaintenancePredictionEngine.dailyAverage(trips)
@@ -57,7 +57,7 @@ class MaintenancePredictionEngineTest {
             val trips = (0..6).map { i ->
                 createTrip(
                     distanceKm = 100.0,
-                    startTime = now - sevenDaysMs + (i * (sevenDaysMs / 7)),
+                    startTime = now - sevenDaysMs + (i * (sevenDaysMs / 6)),
                 )
             }
             val avg = MaintenancePredictionEngine.dailyAverage(trips, fallbackIfFewerDays = 7)

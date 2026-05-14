@@ -1,5 +1,6 @@
 package com.roadmate.phone.worker
 
+import android.annotation.SuppressLint
 import android.Manifest
 import android.app.PendingIntent
 import android.content.Context
@@ -29,6 +30,7 @@ import kotlinx.coroutines.flow.first
 import timber.log.Timber
 import kotlin.math.roundToInt
 
+@SuppressLint("MissingPermission")
 class NotificationCheckWorker(
     context: Context,
     params: WorkerParameters,
