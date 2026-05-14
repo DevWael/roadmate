@@ -20,9 +20,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,6 +41,10 @@ import com.roadmate.core.model.UiState
 import com.roadmate.core.ui.theme.RoadMateSpacing
 import com.roadmate.core.ui.theme.RoadMateTertiary
 import com.roadmate.phone.ui.components.RoadMateScaffold
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -243,6 +249,7 @@ fun TripDetailScreen(
         is UiState.Success -> {
             TripDetailContent(
                 uiState = state.data,
+                viewModel = viewModel,
                 onBack = onBack,
                 modifier = modifier,
             )
@@ -253,10 +260,16 @@ fun TripDetailScreen(
 @Composable
 private fun TripDetailContent(
     uiState: TripDetailUiState,
+    viewModel: TripDetailViewModel,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val trip = uiState.trip
+    val context = LocalContext.current
+    val shareLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+        onResult = {},
+    )
     RoadMateScaffold(
         title = "Trip Detail",
         onBack = onBack,
@@ -335,6 +348,32 @@ private fun TripDetailContent(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                }
+
+                item {
+                    OutlinedButton(
+                        onClick = {
+                            val shareText = viewModel.generateShareText(uiState)
+                            if (shareText != null) {
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, shareText)
+                                }
+                                shareLauncher.launch(
+                                    Intent.createChooser(shareIntent, "Share Route")
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Share,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(RoadMateSpacing.sm))
+                        Text("Share Route")
                     }
                 }
             }

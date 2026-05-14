@@ -11,3 +11,5 @@ import kotlinx.serialization.Serializable
 @Serializable object DocumentList
 @Serializable data class DocumentDetail(val documentId: String)
 @Serializable object VehicleManagement
+@Serializable object Statistics
+@Serializable object ExportData

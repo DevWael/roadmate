@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Build
@@ -28,6 +30,7 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SwipeToDismissBox
@@ -74,6 +77,8 @@ fun VehicleHubScreen(
     onFuelLogClick: () -> Unit,
     onDocumentListClick: () -> Unit,
     onVehicleManagementClick: () -> Unit,
+    onStatisticsClick: () -> Unit = {},
+    onExportClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val viewModel: VehicleHubViewModel = hiltViewModel()
@@ -119,6 +124,20 @@ fun VehicleHubScreen(
                                 modifier = Modifier.size(24.dp),
                             )
                         }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onExportClick) {
+                        Icon(
+                            imageVector = Icons.Filled.FileDownload,
+                            contentDescription = "Export",
+                        )
+                    }
+                    IconButton(onClick = onStatisticsClick) {
+                        Icon(
+                            imageVector = Icons.Filled.Assessment,
+                            contentDescription = "Statistics",
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

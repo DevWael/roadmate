@@ -6,6 +6,7 @@ import com.roadmate.core.database.entity.Trip
 import com.roadmate.core.database.entity.TripPoint
 import com.roadmate.core.model.UiState
 import com.roadmate.core.repository.TripRepository
+import com.roadmate.core.util.RouteShareGenerator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +19,7 @@ import javax.inject.Inject
 data class TripDetailUiState(
     val trip: Trip,
     val routeSummary: RouteSummary?,
+    val tripPoints: List<TripPoint> = emptyList(),
 )
 
 data class RouteSummary(
@@ -51,6 +53,7 @@ class TripDetailViewModel @Inject constructor(
                         TripDetailUiState(
                             trip = trip,
                             routeSummary = buildRouteSummary(points),
+                            tripPoints = points,
                         )
                     ) as UiState<TripDetailUiState>
                 }
@@ -67,6 +70,16 @@ class TripDetailViewModel @Inject constructor(
             startLng = first.longitude,
             endLat = last.latitude,
             endLng = last.longitude,
+        )
+    }
+
+    fun generateShareText(state: TripDetailUiState): String? {
+        if (state.tripPoints.size < 2) return null
+        return RouteShareGenerator.generateRouteShare(
+            points = state.tripPoints,
+            startTimeMs = state.trip.startTime,
+            distanceKm = state.trip.distanceKm,
+            durationMs = state.trip.durationMs,
         )
     }
 }

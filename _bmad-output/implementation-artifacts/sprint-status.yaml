@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-08T22:57:00+03:00"
-last_updated: "2026-05-14T03:16:00+03:00"
+last_updated: "2026-05-14T04:05:00+03:00"
 project: roadmate
 project_key: NOKEY
 tracking_system: file-system
@@ -102,8 +102,8 @@ development_status:
   epic-6-retrospective: optional
 
   # Epic 7: Statistics, Export & Growth Features
-  epic-7: in-progress
-  7-1-driving-summaries-and-statistics: ready-for-dev
-  7-2-data-export-csv-pdf: ready-for-dev
-  7-3-trip-route-sharing: ready-for-dev
-  epic-7-retrospective: option
+  epic-7: done
+  7-1-driving-summaries-and-statistics: done
+  7-2-data-export-csv-pdf: done
+  7-3-trip-route-sharing: done
+  epic-7-retrospective: optional

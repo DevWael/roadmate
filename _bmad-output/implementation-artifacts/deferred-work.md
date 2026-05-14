@@ -163,3 +163,13 @@
 
 - **CompactDrivingHUD hardcodes "km" for trip distance display** — `"${numberFormatter.format(drivingState.distanceKm)} km"` always shows "km" regardless of `vehicle.odometerUnit`. Pre-existing pattern from DrivingHUD.kt.
 - **Vehicle null yields no ODO in CompactDrivingHUD** — AC#5 "ODO always visible" technically violated when vehicle is null, but upstream guards prevent null vehicle from reaching this component.
+
+## Deferred from: code review of story 6-3 (2026-05-14)
+
+- **Narrow breakpoint has no vehicle switcher or D-pad support** — `NarrowParkedLayout` doesn't receive `onSwitchVehicle` or `drivingState`. Pre-existing design choice; Narrow is a minimal fallback layout not intended for interactive D-pad navigation.
+- **Math.round() used instead of kotlin.math.roundToLong()** — Java `Math.round()` in `formatOdometerDisplay` and `FocusableGaugeItem`. Pre-existing pattern across the project; functional but non-idiomatic Kotlin.
+
+## Deferred from: code review of stories 7-1, 7-2, 7-3 (2026-05-14)
+
+- **ExportViewModel.export() takes Context parameter** — `fun export(context: Context)` violates Android architecture guideline that ViewModels should not hold references to Context. The `context.cacheDir` access should be injected via `@ApplicationContext` at construction time. [ExportViewModel.kt:L97]
+- **Cache files not cleaned after ZIP bundling** — After `zipFiles()` creates the ZIP archive, the individual CSV/PDF files remain in the cache directory. Not a correctness issue but causes disk accumulation over time. [ExportViewModel.kt:L222-237]

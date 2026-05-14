@@ -30,6 +30,8 @@ import com.roadmate.phone.ui.maintenance.MaintenanceListScreen
 import com.roadmate.phone.ui.maintenance.MaintenanceCompletionSheetState
 import com.roadmate.phone.ui.maintenance.MaintenanceDetailViewModel
 import com.roadmate.phone.ui.settings.VehicleManagementScreen
+import com.roadmate.phone.ui.settings.ExportScreen
+import com.roadmate.phone.ui.statistics.StatisticsScreen
 import com.roadmate.phone.ui.trips.TripDetailScreen
 import com.roadmate.phone.ui.trips.TripListScreen
 
@@ -71,6 +73,8 @@ fun RoadMateNavHost(
                         onFuelLogClick = { navController.navigate(FuelLog) },
                         onDocumentListClick = { navController.navigate(DocumentList) },
                         onVehicleManagementClick = { navController.navigate(VehicleManagement) },
+                        onStatisticsClick = { navController.navigate(Statistics) },
+                        onExportClick = { navController.navigate(ExportData) },
                     )
                 }
 
@@ -176,6 +180,18 @@ fun RoadMateNavHost(
 
                 composable<VehicleManagement> {
                     VehicleManagementScreen(
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                composable<Statistics> {
+                    StatisticsScreen(
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                composable<ExportData> {
+                    ExportScreen(
                         onBack = { navController.popBackStack() },
                     )
                 }

@@ -153,6 +153,79 @@ class TripDetailViewModelTest {
         }
     }
 
+    @Nested
+    @DisplayName("generateShareText")
+    inner class GenerateShareText {
+
+        @Test
+        fun `generates share text for trip with points`() = runTest {
+            val trip = testTrip(id = "trip-1")
+            fakeTripDao.trips["trip-1"] = trip
+            fakeTripDao.tripPointsForTrip["trip-1"] = mutableListOf(
+                testTripPoint(id = "tp-1", tripId = "trip-1", lat = 37.7749, lng = -122.4194),
+                testTripPoint(id = "tp-2", tripId = "trip-1", lat = 34.0522, lng = -118.2437),
+            )
+            fakeTripDao.updateFlow()
+
+            createViewModel()
+            viewModel.loadTrip("trip-1")
+
+            viewModel.uiState.test {
+                val state = awaitItem()
+                assertTrue(state is UiState.Success)
+                val shareText = viewModel.generateShareText((state as UiState.Success).data)
+                assertTrue(shareText != null)
+                assertTrue(shareText!!.startsWith("My trip on"))
+                assertTrue(shareText.contains("25.0 km"))
+                assertTrue(shareText.contains("https://www.openstreetmap.org/directions?route="))
+            }
+        }
+
+        @Test
+        fun `returns null when fewer than 2 points`() = runTest {
+            val trip = testTrip(id = "trip-1")
+            fakeTripDao.trips["trip-1"] = trip
+            fakeTripDao.tripPointsForTrip["trip-1"] = mutableListOf(
+                testTripPoint(id = "tp-1", tripId = "trip-1"),
+            )
+            fakeTripDao.updateFlow()
+
+            createViewModel()
+            viewModel.loadTrip("trip-1")
+
+            viewModel.uiState.test {
+                val state = awaitItem()
+                assertTrue(state is UiState.Success)
+                val shareText = viewModel.generateShareText((state as UiState.Success).data)
+                assertNull(shareText)
+            }
+        }
+
+        @Test
+        fun `share text includes sampled waypoints in URL`() = runTest {
+            val points = (0..99).map { i ->
+                testTripPoint(id = "tp-$i", tripId = "trip-1", lat = 37.0 + i * 0.001, lng = -122.0 + i * 0.001)
+            }
+            val trip = testTrip(id = "trip-1")
+            fakeTripDao.trips["trip-1"] = trip
+            fakeTripDao.tripPointsForTrip["trip-1"] = points.toMutableList()
+            fakeTripDao.updateFlow()
+
+            createViewModel()
+            viewModel.loadTrip("trip-1")
+
+            viewModel.uiState.test {
+                val state = awaitItem()
+                assertTrue(state is UiState.Success)
+                val shareText = viewModel.generateShareText((state as UiState.Success).data)
+                assertTrue(shareText != null)
+                val urlPart = shareText!!.substringAfterLast("— ")
+                val coords = urlPart.substringAfter("route=").split(";")
+                assertTrue(coords.size <= 25)
+            }
+        }
+    }
+
     private fun testTrip(
         id: String = "trip-1",
         vehicleId: String = "veh-1",
